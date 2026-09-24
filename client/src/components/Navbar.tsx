@@ -28,7 +28,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   overview,
   onOpenBackup,
 }) => {
-  const isLightMode = overview?.settings.current_mode === 'light';
+  const isLightMode = overview?.settings?.current_mode === 'light';
 
   return (
     <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800">

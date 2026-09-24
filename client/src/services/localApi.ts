@@ -97,11 +97,10 @@ export function initLocalStoreIfNeeded() {
   const existingSettings = getStore<any>(KEYS.SETTINGS, null);
   if (!existingSettings) {
     setStore(KEYS.SETTINGS, {
-      busy_mode: 0,
+      current_mode: 'full',
       target_exam_date: '2027-02-06',
-      daily_target_hours: 2.5,
-      qualifying_target: 35,
-      semester_exam_dates: '',
+      target_cutoff: '35.0',
+      busy_periods: [],
     });
   }
 }
@@ -197,16 +196,23 @@ export async function handleLocalApi(urlString: string, options?: RequestInit): 
       }
     });
 
-    const weakAreas = Object.entries(topicAccuracyMap)
-      .map(([topicId, stats]) => ({
-        topic_id: topicId,
-        topic_name: stats.name,
-        subject_name: stats.subject,
-        attempts: stats.total,
-        accuracy_pct: Math.round((stats.correct / stats.total) * 100),
-      }))
-      .filter(item => item.attempts >= 2 && item.accuracy_pct < 60)
-      .sort((a, b) => a.accuracy_pct - b.accuracy_pct)
+    const weakTopics = Object.entries(topicAccuracyMap)
+      .map(([topicId, stats]) => {
+        const top = curriculum.topics.find(t => t.id === topicId);
+        const sub = curriculum.subjects.find(s => s.id === top?.subject_id);
+        return {
+          id: topicId,
+          topic_name: stats.name,
+          subject_name: stats.subject,
+          tier: (sub?.tier || 1) as 1 | 2 | 3,
+          is_high_yield: top?.is_high_yield || 0,
+          total_attempts: stats.total,
+          correct_attempts: stats.correct,
+          accuracy: Math.round((stats.correct / stats.total) * 100),
+        };
+      })
+      .filter(item => item.total_attempts >= 1 && item.accuracy < 60)
+      .sort((a, b) => a.accuracy - b.accuracy)
       .slice(0, 5);
 
     // Consistency streak
@@ -223,7 +229,6 @@ export async function handleLocalApi(urlString: string, options?: RequestInit): 
           streakDays++;
           checkDate.setDate(checkDate.getDate() - 1);
         } else {
-          // If today hasn't had an activity yet, check yesterday
           if (streakDays === 0) {
             checkDate.setDate(checkDate.getDate() - 1);
             const yDateStr = checkDate.toISOString().substring(0, 10);
@@ -238,22 +243,49 @@ export async function handleLocalApi(urlString: string, options?: RequestInit): 
       }
     }
 
+    const totalLessons = curriculum.lessons.length;
+    const completedLessons = lessonProgress.filter(p => p.status === 'completed').length;
+    const overallProgressPct = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+
+    const tierStats = ([1, 2, 3] as const).map(tier => ({
+      tier,
+      total_lessons: tierMap[tier].total,
+      completed_lessons: tierMap[tier].completed,
+    }));
+
+    const overallAttempts = attempts.length;
+    const overallCorrect = attempts.filter(a => a.is_correct).length;
+    const overallAccuracy = overallAttempts > 0 ? Math.round((overallCorrect / overallAttempts) * 100) : 0;
+
+    const mockSummary = {
+      total_mocks: mockSessions.length,
+      high_score: bestMockScore || 0,
+      latest_score: recentMockScore || 0,
+      latest_passed: recentMockScore !== null ? (recentMockScore >= 35 ? 1 : 0) : 0,
+    };
+
+    const overviewSettings = {
+      target_exam_date: settings.target_exam_date || '2027-02-06',
+      target_cutoff: String(settings.target_cutoff || '35.0'),
+      current_mode: (settings.current_mode || 'full') as 'full' | 'light',
+      daily_target_lessons: '2',
+      daily_target_reviews: '10',
+      busy_periods: typeof settings.busy_periods === 'string' ? settings.busy_periods : JSON.stringify(settings.busy_periods || []),
+    };
+
     return jsonResponse({
-      summary: {
-        totalSubjects: curriculum.subjects.length,
-        totalTopics,
-        completedTopics,
-        overallProgressPct: overallProgress,
-        dueReviewsCount,
-        mockTestsCount: mockSessions.length,
-        bestMockScore,
-        recentMockScore,
-        qualifyingCutoff: settings.qualifying_target || 35,
-        streakDays,
-        studyMode: settings.busy_mode ? 'light' : 'full',
-      },
-      tierBreakdown,
-      weakAreas,
+      totalLessons,
+      completedLessons,
+      overallProgressPct,
+      tierStats,
+      dueReviews: dueReviewsCount,
+      weakTopics,
+      overallAttempts,
+      overallCorrect,
+      overallAccuracy,
+      mockSummary,
+      streak: streakDays,
+      settings: overviewSettings,
     });
   }
 
@@ -687,30 +719,33 @@ export async function handleLocalApi(urlString: string, options?: RequestInit): 
   // 13. GET /api/calendar
   if (pathname === '/api/calendar' && method === 'GET') {
     const settings = getStore<any>(KEYS.SETTINGS, {
-      busy_mode: 0,
+      current_mode: 'full',
       target_exam_date: '2027-02-06',
-      daily_target_hours: 2.5,
-      qualifying_target: 35,
-      semester_exam_dates: '',
+      target_cutoff: '35.0',
+      busy_periods: [],
     });
 
     return jsonResponse({
-      settings,
-      studyQueue: {
-        mode: settings.busy_mode ? 'light' : 'full',
-        recommendedFocus: settings.busy_mode
-          ? 'Light Mode active: complete due Spaced Repetition flashcards.'
-          : 'Full Mode active: target 1 new lesson + 10 practice questions + due reviews.',
-      },
+      target_exam_date: settings.target_exam_date || '2027-02-06',
+      target_cutoff: String(settings.target_cutoff || '35.0'),
+      current_mode: settings.current_mode || 'full',
+      busy_periods: Array.isArray(settings.busy_periods) ? settings.busy_periods : [],
     });
   }
 
   // 14. POST /api/calendar
   if (pathname === '/api/calendar' && method === 'POST') {
     const current = getStore<any>(KEYS.SETTINGS, {});
-    const updated = { ...current, ...body };
+    const updated = {
+      ...current,
+      ...body,
+      current_mode: body.current_mode || current.current_mode || 'full',
+      target_exam_date: body.target_exam_date || current.target_exam_date || '2027-02-06',
+      target_cutoff: body.target_cutoff || current.target_cutoff || '35.0',
+      busy_periods: body.busy_periods !== undefined ? body.busy_periods : current.busy_periods || [],
+    };
     setStore(KEYS.SETTINGS, updated);
-    return jsonResponse({ success: true, settings: updated });
+    return jsonResponse({ success: true, message: 'Settings saved', ...updated });
   }
 
   // 15. POST /api/backup/snapshot (Export full state)

@@ -25,13 +25,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onNavigate,
   onDrillWeakAreas,
 }) => {
-  const cutoff = parseFloat(overview.settings.target_cutoff || '35.0');
-  const examDateStr = overview.settings.target_exam_date || '2027-02-06';
+  const cutoff = parseFloat(overview?.settings?.target_cutoff || '35.0');
+  const examDateStr = overview?.settings?.target_exam_date || '2027-02-06';
   const daysRemaining = Math.max(0, Math.ceil((new Date(examDateStr).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
 
-  const tier1 = overview.tierStats.find(t => t.tier === 1) || { tier: 1, total_lessons: 3, completed_lessons: 0 };
-  const tier2 = overview.tierStats.find(t => t.tier === 2) || { tier: 2, total_lessons: 3, completed_lessons: 0 };
-  const tier3 = overview.tierStats.find(t => t.tier === 3) || { tier: 3, total_lessons: 0, completed_lessons: 0 };
+  const tierStats = overview?.tierStats || [];
+  const tier1 = tierStats.find(t => t.tier === 1) || { tier: 1 as const, total_lessons: 0, completed_lessons: 0 };
+  const tier2 = tierStats.find(t => t.tier === 2) || { tier: 2 as const, total_lessons: 0, completed_lessons: 0 };
+  const tier3 = tierStats.find(t => t.tier === 3) || { tier: 3 as const, total_lessons: 0, completed_lessons: 0 };
 
   const tier1Pct = tier1.total_lessons > 0 ? Math.round((tier1.completed_lessons / tier1.total_lessons) * 100) : 0;
   const tier2Pct = tier2.total_lessons > 0 ? Math.round((tier2.completed_lessons / tier2.total_lessons) * 100) : 0;
@@ -127,7 +128,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <AlertTriangle className="w-4 h-4" /> Weak-Area Drill
               </span>
               <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300">
-                {overview.weakTopics.length} Identified
+                {(overview?.weakTopics || []).length} Identified
               </span>
             </div>
             <h3 className="text-base font-semibold text-white mb-1">Targeted Weakness Fix</h3>

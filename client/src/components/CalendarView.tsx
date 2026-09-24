@@ -31,10 +31,18 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSettingsSaved }) =
     fetch('/api/calendar')
       .then(res => res.json())
       .then(data => {
-        if (data.target_exam_date) setTargetExamDate(data.target_exam_date);
-        if (data.target_cutoff) setTargetCutoff(data.target_cutoff);
-        if (data.current_mode) setCurrentMode(data.current_mode);
-        if (Array.isArray(data.busy_periods)) setBusyPeriods(data.busy_periods);
+        if (!data) return;
+        const config = data.settings || data;
+        if (config.target_exam_date) setTargetExamDate(config.target_exam_date);
+        if (config.target_cutoff) setTargetCutoff(String(config.target_cutoff));
+        if (config.current_mode) setCurrentMode(config.current_mode);
+        if (Array.isArray(config.busy_periods)) {
+          setBusyPeriods(config.busy_periods);
+        } else if (typeof config.busy_periods === 'string') {
+          try {
+            setBusyPeriods(JSON.parse(config.busy_periods));
+          } catch {}
+        }
       })
       .catch(console.error);
   }, []);
