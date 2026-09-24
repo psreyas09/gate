@@ -1,0 +1,21 @@
+{
+  "name": "gate_study",
+  "version": "1.0.0",
+  "description": "High-yield GATE CSE 2027 Study Platform targeting 35+/100 qualifying score",
+  "main": "server/index.js",
+  "scripts": {
+    "server": "node server/index.js",
+    "client": "npm --prefix client run dev",
+    "dev": "concurrently -k -n \"api,web\" -c \"cyan,magenta\" \"npm run server\" \"npm run client\"",
+    "build": "npm --prefix client run build",
+    "test": "node test_suite.js"
+  },
+  "keywords": ["gate-cse", "study", "sm-2", "spaced-repetition"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "concurrently": "^10.0.5",
+    "cors": "^2.8.6",
+    "express": "^5.2.1"
+  }
+}
