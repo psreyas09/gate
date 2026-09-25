@@ -322,6 +322,21 @@ app.post('/api/auth/migrate-guest', requireAuth, async (req, res) => {
   }
 });
 
+// Check Username Availability
+app.get('/api/auth/check-username', async (req, res) => {
+  try {
+    const { username } = req.query;
+    if (!username || typeof username !== 'string' || username.trim().length < 3) {
+      return res.json({ available: false, exists: false, reason: 'too_short' });
+    }
+    const cleanUsername = username.trim();
+    const existing = await db.prepare('SELECT id FROM users WHERE LOWER(username) = LOWER(?)').get(cleanUsername);
+    res.json({ available: !existing, exists: Boolean(existing) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Logout
 app.post('/api/auth/logout', (req, res) => {
   res.json({ success: true, message: 'Logged out successfully.' });
@@ -329,78 +344,82 @@ app.post('/api/auth/logout', (req, res) => {
 
 // ================= CURRICULUM & PROGRESS ENDPOINTS =================
 
-// 1. Dashboard Overview
+// 1. Dashboard Overview (Parallelized for minimal TTFB)
 app.get('/api/overview', async (req, res) => {
   try {
-    const totalLessonsRow = await db.prepare('SELECT COUNT(*) as c FROM lessons').get();
-    const totalLessons = totalLessonsRow ? totalLessonsRow.c : 0;
-
-    const completedLessonsRow = await db.prepare("SELECT COUNT(*) as c FROM user_lesson_progress WHERE status = 'completed' AND user_id = ?").get(req.userId);
-    const completedLessons = completedLessonsRow ? completedLessonsRow.c : 0;
-
-    // Breakdown by tier
-    const tierStats = await db.prepare(`
-      SELECT s.tier, COUNT(DISTINCT l.id) as total_lessons,
-             SUM(CASE WHEN p.status = 'completed' THEN 1 ELSE 0 END) as completed_lessons
-      FROM subjects s
-      JOIN topics t ON s.id = t.subject_id
-      LEFT JOIN lessons l ON t.id = l.topic_id
-      LEFT JOIN user_lesson_progress p ON l.id = p.lesson_id AND p.user_id = ?
-      GROUP BY s.tier
-      ORDER BY s.tier ASC
-    `).all(req.userId);
-
-    // Spaced repetition due count
     const nowIso = new Date().toISOString();
-    const dueReviewsRow = await db.prepare(`
-      SELECT COUNT(*) as c FROM spaced_repetition_cards WHERE due_date <= ? AND user_id = ?
-    `).get(nowIso, req.userId);
+
+    const [
+      totalLessonsRow,
+      completedLessonsRow,
+      tierStats,
+      dueReviewsRow,
+      weakTopics,
+      overallStatsRaw,
+      mockSummaryRaw,
+      recentActivityRows,
+      settingsRows,
+    ] = await Promise.all([
+      db.prepare('SELECT COUNT(*) as c FROM lessons').get(),
+      db.prepare("SELECT COUNT(*) as c FROM user_lesson_progress WHERE status = 'completed' AND user_id = ?").get(req.userId),
+      db.prepare(`
+        SELECT s.tier, COUNT(DISTINCT l.id) as total_lessons,
+               SUM(CASE WHEN p.status = 'completed' THEN 1 ELSE 0 END) as completed_lessons
+        FROM subjects s
+        JOIN topics t ON s.id = t.subject_id
+        LEFT JOIN lessons l ON t.id = l.topic_id
+        LEFT JOIN user_lesson_progress p ON l.id = p.lesson_id AND p.user_id = ?
+        GROUP BY s.tier
+        ORDER BY s.tier ASC
+      `).all(req.userId),
+      db.prepare(`
+        SELECT COUNT(*) as c FROM spaced_repetition_cards WHERE due_date <= ? AND user_id = ?
+      `).get(nowIso, req.userId),
+      db.prepare(`
+        SELECT t.id, t.name as topic_name, s.name as subject_name, s.tier, t.is_high_yield,
+               COUNT(a.id) as total_attempts,
+               SUM(a.is_correct) as correct_attempts,
+               ROUND(CAST(SUM(a.is_correct) AS REAL) * 100.0 / COUNT(a.id), 1) as accuracy
+        FROM topics t
+        JOIN subjects s ON t.subject_id = s.id
+        JOIN questions q ON t.id = q.topic_id
+        JOIN user_question_attempts a ON q.id = a.question_id AND a.user_id = ?
+        GROUP BY t.id
+        HAVING accuracy < 60.0 AND total_attempts >= 1
+        ORDER BY t.is_high_yield DESC, accuracy ASC
+        LIMIT 5
+      `).all(req.userId),
+      db.prepare(`
+        SELECT COUNT(*) as total_attempts,
+               COALESCE(SUM(is_correct), 0) as total_correct
+        FROM user_question_attempts
+        WHERE user_id = ?
+      `).get(req.userId),
+      db.prepare(`
+        SELECT COUNT(*) as total_mocks,
+               COALESCE(MAX(score_obtained), 0) as high_score,
+               COALESCE((SELECT score_obtained FROM mock_sessions WHERE user_id = ? ORDER BY created_at DESC LIMIT 1), 0) as latest_score,
+               COALESCE((SELECT passed_cutoff FROM mock_sessions WHERE user_id = ? ORDER BY created_at DESC LIMIT 1), 0) as latest_passed
+        FROM mock_sessions
+        WHERE user_id = ?
+      `).get(req.userId, req.userId, req.userId),
+      db.prepare(`
+        SELECT DISTINCT SUBSTR(attempted_at, 1, 10) as day
+        FROM user_question_attempts
+        WHERE user_id = ?
+        ORDER BY day DESC
+        LIMIT 30
+      `).all(req.userId),
+      db.prepare('SELECT * FROM study_settings WHERE user_id = ?').all(req.userId),
+    ]);
+
+    const totalLessons = totalLessonsRow ? totalLessonsRow.c : 0;
+    const completedLessons = completedLessonsRow ? completedLessonsRow.c : 0;
     const dueReviews = dueReviewsRow ? dueReviewsRow.c : 0;
+    const overallStats = overallStatsRaw || { total_attempts: 0, total_correct: 0 };
+    const mockSummary = mockSummaryRaw || { total_mocks: 0, high_score: 0, latest_score: 0, latest_passed: 0 };
 
-    // Weak areas (Topics where question accuracy is < 60% with at least 1 attempt)
-    const weakTopics = await db.prepare(`
-      SELECT t.id, t.name as topic_name, s.name as subject_name, s.tier, t.is_high_yield,
-             COUNT(a.id) as total_attempts,
-             SUM(a.is_correct) as correct_attempts,
-             ROUND(CAST(SUM(a.is_correct) AS REAL) * 100.0 / COUNT(a.id), 1) as accuracy
-      FROM topics t
-      JOIN subjects s ON t.subject_id = s.id
-      JOIN questions q ON t.id = q.topic_id
-      JOIN user_question_attempts a ON q.id = a.question_id AND a.user_id = ?
-      GROUP BY t.id
-      HAVING accuracy < 60.0 AND total_attempts >= 1
-      ORDER BY t.is_high_yield DESC, accuracy ASC
-      LIMIT 5
-    `).all(req.userId);
-
-    // Overall attempt accuracy
-    const overallStats = (await db.prepare(`
-      SELECT COUNT(*) as total_attempts,
-             COALESCE(SUM(is_correct), 0) as total_correct
-      FROM user_question_attempts
-      WHERE user_id = ?
-    `).get(req.userId)) || { total_attempts: 0, total_correct: 0 };
-
-    // Mock summary
-    const mockSummary = (await db.prepare(`
-      SELECT COUNT(*) as total_mocks,
-             COALESCE(MAX(score_obtained), 0) as high_score,
-             COALESCE((SELECT score_obtained FROM mock_sessions WHERE user_id = ? ORDER BY created_at DESC LIMIT 1), 0) as latest_score,
-             COALESCE((SELECT passed_cutoff FROM mock_sessions WHERE user_id = ? ORDER BY created_at DESC LIMIT 1), 0) as latest_passed
-      FROM mock_sessions
-      WHERE user_id = ?
-    `).get(req.userId, req.userId, req.userId)) || { total_mocks: 0, high_score: 0, latest_score: 0, latest_passed: 0 };
-
-    // Consistency streak: count distinct days in last 30 days
-    const recentActivityRows = await db.prepare(`
-      SELECT DISTINCT SUBSTR(attempted_at, 1, 10) as day
-      FROM user_question_attempts
-      WHERE user_id = ?
-      ORDER BY day DESC
-      LIMIT 30
-    `).all(req.userId);
-    const recentActivityDays = recentActivityRows.map(r => r.day);
-
+    const recentActivityDays = (recentActivityRows || []).map(r => r.day);
     let streak = 0;
     const todayStr = new Date().toISOString().substring(0, 10);
     let checkDate = new Date();
@@ -416,17 +435,16 @@ app.get('/api/overview', async (req, res) => {
       streak = recentActivityDays.length;
     }
 
-    const settingsRows = await db.prepare('SELECT * FROM study_settings WHERE user_id = ?').all(req.userId);
     const settings = {};
-    settingsRows.forEach(s => { settings[s.key] = s.value; });
+    (settingsRows || []).forEach(s => { settings[s.key] = s.value; });
 
     res.json({
       totalLessons,
       completedLessons,
       overallProgressPct: totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0,
-      tierStats,
+      tierStats: tierStats || [],
       dueReviews,
-      weakTopics,
+      weakTopics: weakTopics || [],
       overallAttempts: overallStats.total_attempts,
       overallCorrect: overallStats.total_correct,
       overallAccuracy: overallStats.total_attempts > 0 ? Math.round((overallStats.total_correct / overallStats.total_attempts) * 100) : 0,
