@@ -74,13 +74,18 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
       .catch(() => setLoading(false));
   }, [selectedSubjectId, initialTopicId]);
 
+  const resetScroll = () => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    document.querySelector('main')?.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  };
+
   const loadLesson = async (lessonId: string, switchMobileToLesson: boolean = true) => {
     setLoading(true);
     setCheckFeedback(null);
     setQuickCheckAnswers({});
     if (switchMobileToLesson) {
       setMobileViewMode('lesson');
-      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      resetScroll();
     }
     try {
       const res = await fetch(`/api/lessons/${lessonId}`);
@@ -214,7 +219,7 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
         <button
           onClick={() => {
             setMobileViewMode('topics');
-            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+            resetScroll();
           }}
           className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
             mobileViewMode === 'topics'
@@ -227,7 +232,7 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
         <button
           onClick={() => {
             setMobileViewMode('lesson');
-            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+            resetScroll();
           }}
           disabled={!selectedLesson}
           className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 ${
@@ -321,7 +326,7 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
                 <button
                   onClick={() => {
                     setMobileViewMode('topics');
-                    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+                    resetScroll();
                   }}
                   className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-400 hover:text-cyan-300 p-1"
                 >

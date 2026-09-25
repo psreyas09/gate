@@ -65,11 +65,14 @@ Every lesson explicitly cites standard reference textbooks:
    - Fixed empty card bug where auto-generated lesson cards and missed-question reviews lacked proper field mapping.
    - Added universal fallback extraction across `flashcard_front`, `front`, and `question_text` for the prompt, and `flashcard_back`, `back`, and `question_explanation` for the solution.
    - Enriched both SQLite backend (`server/index.js`) and in-browser fallback engine (`localApi.ts`) to fully populate all item types (`flashcard`, `lesson`, and `question`).
-10. **Rock-Solid Static Bottom Navigation & Scroll Clamping:**
-   - Hardware-accelerated the fixed bottom navigation bar with GPU layer promotion (`translate3d(0, 0, 0)`, `will-change: transform`) and solid styling, eliminating mobile scroll jitter/latency from heavy backdrop blurs.
-   - Removed `overscroll-behavior-y: none;` on `body` which caused mobile browser viewport height desynchronization and freezing in empty space.
-   - Eliminated redundant `pb-24` and double-footer padding that caused ~200-400px of empty scrollable void at the bottom of pages; footer is now desktop-only while mobile uses the dedicated bottom navigation and More drawer.
-   - Added instant scroll-to-top restoration on all tab switches and mobile master-detail switches so shorter views never land scrolled into empty bottom space.
+10. **Native-Quality Mobile App Shell & Zero-Overscroll Layout:**
+   - Switched mobile UX to a dedicated App Shell layout (`h-[100dvh] overflow-hidden flex flex-col`):
+     - **Header:** Rigidly docked at the top (`shrink-0`).
+     - **Main Content:** Independently scrollable (`flex-1 overflow-y-auto overscroll-y-contain pb-6 sm:pb-8`).
+     - **Bottom Navigation:** Solid, statically docked flex sibling below `<main>` (`shrink-0 safe-bottom`), not a floating overlay.
+   - Eliminates window-level viewport height jitter/latency and completely prevents scrolling past the end into empty voids.
+   - On desktop, cleanly falls back to normal window scrolling (`sm:overflow-visible sm:h-auto`) with sticky header and footer.
+   - Instant scroll restoration (`mainRef.current?.scrollTo({ top: 0 })`) on all tab switches and master-detail toggles.
 
 ---
 

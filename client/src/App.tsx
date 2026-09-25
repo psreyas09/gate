@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Navbar, NavTab } from './components/Navbar';
+import React, { useState, useEffect, useRef } from 'react';
+import { Navbar, MobileBottomNav, NavTab } from './components/Navbar';
 import { DashboardView } from './components/DashboardView';
 import { LessonsView } from './components/LessonsView';
 import { SpacedRepetitionView } from './components/SpacedRepetitionView';
@@ -16,6 +16,7 @@ export function App() {
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [isBackupOpen, setIsBackupOpen] = useState(false);
   const [drillWeakOnly, setDrillWeakOnly] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
 
   const fetchOverview = () => {
     fetch('/api/overview')
@@ -31,6 +32,7 @@ export function App() {
   const handleDrillWeakAreas = () => {
     setDrillWeakOnly(true);
     setCurrentTab('practice');
+    mainRef.current?.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   };
 
@@ -39,11 +41,12 @@ export function App() {
       setDrillWeakOnly(false);
     }
     setCurrentTab(tab);
+    mainRef.current?.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   };
 
   return (
-    <div className="min-h-screen min-h-[100dvh] bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
+    <div className="h-screen h-[100dvh] sm:h-auto sm:min-h-screen bg-slate-950 text-slate-100 flex flex-col overflow-hidden sm:overflow-visible font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
       {/* Header Navigation */}
       <Navbar
         currentTab={currentTab}
@@ -53,7 +56,10 @@ export function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] sm:pb-8">
+      <main
+        ref={mainRef}
+        className="flex-1 overflow-y-auto sm:overflow-visible sm:h-auto overscroll-y-contain max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-6 sm:pb-8"
+      >
         {currentTab === 'dashboard' && overview && (
           <DashboardView
             overview={overview}
@@ -86,6 +92,14 @@ export function App() {
           <ResourcesView />
         )}
       </main>
+
+      {/* Mobile Bottom Navigation (docked firmly below main on mobile) */}
+      <MobileBottomNav
+        currentTab={currentTab}
+        onTabChange={handleTabChange}
+        overview={overview}
+        onOpenBackup={() => setIsBackupOpen(true)}
+      />
 
       {/* Footer (Desktop only - mobile uses dedicated bottom nav & More drawer) */}
       <footer className="hidden sm:block border-t border-slate-800/80 bg-slate-900/40 py-5 sm:pb-6 text-xs text-slate-500">

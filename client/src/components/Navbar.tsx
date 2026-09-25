@@ -41,18 +41,15 @@ export const Navbar: React.FC<NavbarProps> = ({
   overview,
   onOpenBackup,
 }) => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isLightMode = overview?.settings?.current_mode === 'light';
 
   const handleSelectTab = (tab: NavTab) => {
     onTabChange(tab);
-    setMobileMenuOpen(false);
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   };
 
   return (
-    <>
-      <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800">
+    <header className="shrink-0 sm:sticky sm:top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800">
         {/* Top Bar */}
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2">
           {/* Brand */}
@@ -157,16 +154,29 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
       </header>
+  );
+};
 
+export const MobileBottomNav: React.FC<NavbarProps> = ({
+  currentTab,
+  onTabChange,
+  overview,
+  onOpenBackup,
+}) => {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const isLightMode = overview?.settings?.current_mode === 'light';
+
+  const handleSelectTab = (tab: NavTab) => {
+    onTabChange(tab);
+    setMobileMenuOpen(false);
+  };
+
+  return (
+    <>
       {/* Mobile Bottom Navigation Bar (Phone-friendly, 1-thumb reach) */}
       <nav
         aria-label="Mobile Navigation"
-        className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900 border-t border-slate-800 safe-bottom transform-gpu select-none"
-        style={{
-          transform: 'translate3d(0, 0, 0)',
-          WebkitTransform: 'translate3d(0, 0, 0)',
-          willChange: 'transform',
-        }}
+        className="sm:hidden shrink-0 z-40 bg-slate-900 border-t border-slate-800 safe-bottom select-none"
       >
         <div className="grid grid-cols-5 h-14">
           {/* 1. Dashboard */}
