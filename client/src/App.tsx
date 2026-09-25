@@ -31,6 +31,7 @@ export function App() {
   const handleDrillWeakAreas = () => {
     setDrillWeakOnly(true);
     setCurrentTab('practice');
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   };
 
   const handleTabChange = (tab: NavTab) => {
@@ -38,10 +39,11 @@ export function App() {
       setDrillWeakOnly(false);
     }
     setCurrentTab(tab);
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
+    <div className="min-h-screen min-h-[100dvh] bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
       {/* Header Navigation */}
       <Navbar
         currentTab={currentTab}
@@ -51,7 +53,7 @@ export function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-24 sm:pb-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] sm:pb-8">
         {currentTab === 'dashboard' && overview && (
           <DashboardView
             overview={overview}
@@ -85,8 +87,8 @@ export function App() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-800/80 bg-slate-900/40 py-5 pb-20 sm:pb-6 text-xs text-slate-500">
+      {/* Footer (Desktop only - mobile uses dedicated bottom nav & More drawer) */}
+      <footer className="hidden sm:block border-t border-slate-800/80 bg-slate-900/40 py-5 sm:pb-6 text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
           <div className="flex items-center gap-2 text-slate-400">
             <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />

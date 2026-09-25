@@ -80,6 +80,7 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
     setQuickCheckAnswers({});
     if (switchMobileToLesson) {
       setMobileViewMode('lesson');
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     }
     try {
       const res = await fetch(`/api/lessons/${lessonId}`);
@@ -211,7 +212,10 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
       {/* Mobile-Only Master-Detail Switcher Bar */}
       <div className="lg:hidden flex rounded-xl bg-slate-900/90 border border-slate-800 p-1 text-xs font-medium">
         <button
-          onClick={() => setMobileViewMode('topics')}
+          onClick={() => {
+            setMobileViewMode('topics');
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+          }}
           className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
             mobileViewMode === 'topics'
               ? 'bg-cyan-500/20 text-cyan-300 font-semibold shadow-sm'
@@ -221,7 +225,10 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
           <span>Topics List ({topics.length})</span>
         </button>
         <button
-          onClick={() => setMobileViewMode('lesson')}
+          onClick={() => {
+            setMobileViewMode('lesson');
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+          }}
           disabled={!selectedLesson}
           className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 ${
             mobileViewMode === 'lesson'
@@ -312,7 +319,10 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
               {/* Mobile Back to Topics Button */}
               <div className="lg:hidden flex items-center justify-between pb-1">
                 <button
-                  onClick={() => setMobileViewMode('topics')}
+                  onClick={() => {
+                    setMobileViewMode('topics');
+                    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+                  }}
                   className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-400 hover:text-cyan-300 p-1"
                 >
                   <ChevronRight className="w-4 h-4 rotate-180" />

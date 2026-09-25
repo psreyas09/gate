@@ -47,6 +47,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const handleSelectTab = (tab: NavTab) => {
     onTabChange(tab);
     setMobileMenuOpen(false);
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   };
 
   return (
@@ -158,7 +159,15 @@ export const Navbar: React.FC<NavbarProps> = ({
       </header>
 
       {/* Mobile Bottom Navigation Bar (Phone-friendly, 1-thumb reach) */}
-      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 safe-bottom">
+      <nav
+        aria-label="Mobile Navigation"
+        className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900 border-t border-slate-800 safe-bottom transform-gpu select-none"
+        style={{
+          transform: 'translate3d(0, 0, 0)',
+          WebkitTransform: 'translate3d(0, 0, 0)',
+          willChange: 'transform',
+        }}
+      >
         <div className="grid grid-cols-5 h-14">
           {/* 1. Dashboard */}
           <button
@@ -224,7 +233,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span>More</span>
           </button>
         </div>
-      </div>
+      </nav>
 
       {/* Mobile "More" Drawer / Modal */}
       {mobileMenuOpen && (

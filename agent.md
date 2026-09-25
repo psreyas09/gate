@@ -65,6 +65,11 @@ Every lesson explicitly cites standard reference textbooks:
    - Fixed empty card bug where auto-generated lesson cards and missed-question reviews lacked proper field mapping.
    - Added universal fallback extraction across `flashcard_front`, `front`, and `question_text` for the prompt, and `flashcard_back`, `back`, and `question_explanation` for the solution.
    - Enriched both SQLite backend (`server/index.js`) and in-browser fallback engine (`localApi.ts`) to fully populate all item types (`flashcard`, `lesson`, and `question`).
+10. **Rock-Solid Static Bottom Navigation & Scroll Clamping:**
+   - Hardware-accelerated the fixed bottom navigation bar with GPU layer promotion (`translate3d(0, 0, 0)`, `will-change: transform`) and solid styling, eliminating mobile scroll jitter/latency from heavy backdrop blurs.
+   - Removed `overscroll-behavior-y: none;` on `body` which caused mobile browser viewport height desynchronization and freezing in empty space.
+   - Eliminated redundant `pb-24` and double-footer padding that caused ~200-400px of empty scrollable void at the bottom of pages; footer is now desktop-only while mobile uses the dedicated bottom navigation and More drawer.
+   - Added instant scroll-to-top restoration on all tab switches and mobile master-detail switches so shorter views never land scrolled into empty bottom space.
 
 ---
 
