@@ -101,6 +101,8 @@ export function App() {
             overview={overview}
             onNavigate={handleTabChange}
             onDrillWeakAreas={handleDrillWeakAreas}
+            currentUser={currentUser}
+            onOpenAuth={() => setIsAuthModalOpen(true)}
           />
         )}
 

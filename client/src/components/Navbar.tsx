@@ -59,19 +59,19 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="shrink-0 sm:sticky sm:top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800">
         {/* Top Bar */}
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2">
+        <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-2">
           {/* Brand */}
           <div
-            className="flex items-center gap-2.5 cursor-pointer select-none shrink-0"
+            className="flex items-center gap-2 cursor-pointer select-none shrink-0"
             onClick={() => handleSelectTab('dashboard')}
           >
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-cyan-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-900/30 font-black text-white text-sm sm:text-base">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-cyan-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-900/30 font-black text-white text-sm sm:text-base shrink-0">
               G
             </div>
             <div>
               <div className="flex items-center gap-1.5 sm:gap-2">
-                <span className="font-bold text-slate-100 tracking-tight text-sm sm:text-lg">GATE CSE 2027</span>
-                <span className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider px-1.5 sm:px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300">
+                <span className="font-bold text-slate-100 tracking-tight text-sm sm:text-lg">GATE 2027</span>
+                <span className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider px-1.5 sm:px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 hidden sm:inline-block">
                   Target 35+
                 </span>
               </div>
@@ -79,8 +79,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Quick Indicators */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5">
+          {/* Quick Indicators & Sign In */}
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             {/* Study Mode Indicator */}
             <button
               onClick={() => handleSelectTab('calendar')}
@@ -96,10 +96,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Consistency Streak */}
             <div
-              className="flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[11px] sm:text-xs font-semibold"
+              className="flex items-center gap-1 px-1.5 sm:px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[11px] sm:text-xs font-semibold shrink-0"
               title={`${overview?.streak || 0} day study streak`}
             >
-              <Flame className="w-3.5 h-3.5 fill-amber-400" />
+              <Flame className="w-3.5 h-3.5 fill-amber-400 shrink-0" />
               <span>{overview?.streak || 0}d</span>
               <span className="hidden sm:inline">streak</span>
             </div>
@@ -107,45 +107,45 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Due Reviews Pill */}
             <button
               onClick={() => handleSelectTab('spaced_repetition')}
-              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/25 transition-colors text-[11px] sm:text-xs font-semibold"
+              className="flex items-center gap-1 px-1.5 sm:px-2.5 py-1 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/25 transition-colors text-[11px] sm:text-xs font-semibold shrink-0"
               title="SuperMemo SM-2 Due Reviews"
             >
-              <Brain className="w-3.5 h-3.5" />
+              <Brain className="w-3.5 h-3.5 shrink-0" />
               <span>{overview?.dueReviews ?? 0}</span>
               <span className="hidden sm:inline">due</span>
             </button>
 
-            {/* Backup Button */}
+            {/* Backup Button - Hidden on mobile, accessible via More drawer */}
             <button
               onClick={onOpenBackup}
-              className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition-colors text-[11px] sm:text-xs font-medium"
+              className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition-colors text-xs font-medium shrink-0"
               title="Backup & Export Database"
               aria-label="Backup"
             >
               <HardDriveDownload className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="hidden sm:inline">Backup</span>
+              <span>Backup</span>
             </button>
 
-            {/* Account / User Button */}
+            {/* Account / User Button - Always prominent and visible on mobile */}
             {currentUser ? (
               <button
                 onClick={onLogout}
-                className="group flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg bg-slate-800/90 hover:bg-rose-500/10 border border-slate-700 hover:border-rose-500/30 text-slate-200 hover:text-rose-300 transition-colors text-[11px] sm:text-xs font-medium"
+                className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-rose-500/10 border border-slate-700 hover:border-rose-500/30 text-slate-200 hover:text-rose-300 transition-colors text-[11px] sm:text-xs font-medium shrink-0"
                 title={`Logged in as ${currentUser.username}. Click to sign out.`}
               >
                 <div className="w-4 h-4 rounded-full bg-cyan-600 flex items-center justify-center text-[10px] font-bold text-white uppercase shrink-0">
                   {currentUser.username[0]}
                 </div>
-                <span className="max-w-[70px] sm:max-w-[100px] truncate hidden xs:inline">{currentUser.username}</span>
-                <LogOut className="w-3 h-3 text-slate-400 group-hover:text-rose-400 shrink-0" />
+                <span className="max-w-[55px] sm:max-w-[100px] truncate">{currentUser.username}</span>
+                <LogOut className="w-3 h-3 text-slate-400 hover:text-rose-400 shrink-0" />
               </button>
             ) : (
               <button
                 onClick={onOpenAuth}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white shadow-sm shadow-cyan-900/30 text-[11px] sm:text-xs font-semibold transition-all active:scale-95"
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white shadow-md shadow-cyan-900/40 text-xs font-semibold transition-all active:scale-95 shrink-0"
                 title="Sign In or Create Account to save progress across devices"
               >
-                <UserIcon className="w-3.5 h-3.5" />
+                <UserIcon className="w-3.5 h-3.5 shrink-0" />
                 <span>Sign In</span>
               </button>
             )}

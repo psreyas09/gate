@@ -9,21 +9,26 @@ import {
   TrendingUp,
   Target,
   Clock,
-  BookMarked
+  BookMarked,
+  User as UserIcon
 } from 'lucide-react';
-import { OverviewData } from '../types';
+import { OverviewData, User } from '../types';
 import { NavTab } from './Navbar';
 
 interface DashboardViewProps {
   overview: OverviewData;
   onNavigate: (tab: NavTab) => void;
   onDrillWeakAreas: () => void;
+  currentUser?: User | null;
+  onOpenAuth?: () => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   overview,
   onNavigate,
   onDrillWeakAreas,
+  currentUser,
+  onOpenAuth,
 }) => {
   const cutoff = parseFloat(overview?.settings?.target_cutoff || '35.0');
   const examDateStr = overview?.settings?.target_exam_date || '2027-02-06';
@@ -43,6 +48,32 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Guest Mode Callout Banner */}
+      {!currentUser && onOpenAuth && (
+        <div className="flex items-center justify-between gap-3 p-3 sm:p-4 rounded-xl bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border border-cyan-500/30 text-slate-200 shadow-md">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="p-2 rounded-lg bg-cyan-500/15 text-cyan-400 shrink-0">
+              <UserIcon className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs sm:text-sm font-semibold text-white">Studying as Guest</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/30 font-medium">Local Only</span>
+              </div>
+              <p className="text-[11px] sm:text-xs text-slate-400 truncate">
+                Sign in or register to sync your study streak, flashcards, and progress across all devices.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onOpenAuth}
+            className="shrink-0 px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-sm shadow-cyan-900/40 transition-all active:scale-95"
+          >
+            Sign In
+          </button>
+        </div>
+      )}
+
       {/* 35+ Qualifying Target Banner */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950/60 to-slate-900 border border-indigo-500/30 p-4 sm:p-8 shadow-xl">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5 sm:gap-6">
