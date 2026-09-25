@@ -1454,20 +1454,21 @@ A greedy algorithm makes the locally optimal choice at each step hoping it leads
   }
 ];
 
-const insertLesson = db.prepare(`
-  INSERT INTO lessons (id, topic_id, title, content_markdown, quick_check_questions, citation)
-  VALUES (?, ?, ?, ?, ?, ?)
-  ON CONFLICT(id) DO UPDATE SET
-    title = excluded.title,
-    content_markdown = excluded.content_markdown,
-    quick_check_questions = excluded.quick_check_questions,
-    citation = excluded.citation
-`);
+async function seedAllLessons() {
+  const stmts = allLessons.map(l => ({
+    sql: `INSERT INTO lessons (id, topic_id, title, content_markdown, quick_check_questions, citation)
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            title = excluded.title,
+            content_markdown = excluded.content_markdown,
+            quick_check_questions = excluded.quick_check_questions,
+            citation = excluded.citation`,
+    args: [l.id, l.topic_id, l.title, l.content_markdown, JSON.stringify(l.quick_check_questions), l.citation]
+  }));
+  if (stmts.length > 0) {
+    await db.batch(stmts);
+    console.log(`Successfully seeded ${allLessons.length} lessons with complete quick-checks!`);
+  }
+}
 
-let count = 0;
-allLessons.forEach(l => {
-  insertLesson.run(l.id, l.topic_id, l.title, l.content_markdown, JSON.stringify(l.quick_check_questions), l.citation);
-  count++;
-});
-
-console.log(`Successfully seeded ${count} lessons with complete quick-checks across all subjects and tiers!`);
+module.exports = { allLessons, seedAllLessons };

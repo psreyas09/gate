@@ -1,8 +1,9 @@
 const { db } = require('./db');
+const { seedAllLessons } = require('./seed_all_lessons');
 
-function seedDatabase() {
-  const existingCount = db.prepare('SELECT COUNT(*) as count FROM subjects').get().count;
-  if (existingCount > 0) {
+async function seedDatabase() {
+  const existing = await db.prepare('SELECT COUNT(*) as count FROM subjects').get();
+  if (existing && existing.count > 0) {
     console.log('Database already seeded. Skipping initial seeding.');
     return;
   }
@@ -106,14 +107,12 @@ function seedDatabase() {
     }
   ];
 
-  const insertSubject = db.prepare(`
-    INSERT INTO subjects (id, name, tier, priority_weight, reference_book, citation_info)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
-
-  subjects.forEach(s => {
-    insertSubject.run(s.id, s.name, s.tier, s.priority_weight, s.reference_book, s.citation_info);
-  });
+  const subjectStmts = subjects.map(s => ({
+    sql: `INSERT INTO subjects (id, name, tier, priority_weight, reference_book, citation_info)
+          VALUES (?, ?, ?, ?, ?, ?)`,
+    args: [s.id, s.name, s.tier, s.priority_weight, s.reference_book, s.citation_info]
+  }));
+  await db.batch(subjectStmts);
 
   // 2. High-Yield & Standard Topics
   const topics = [
@@ -179,14 +178,12 @@ function seedDatabase() {
     { id: 'comp_phases_overview', subject_id: 'compiler', name: 'Overview of 6 Phases of Compiler & Symbol Table', order_index: 1, is_high_yield: 0, estimated_study_mins: 20 }
   ];
 
-  const insertTopic = db.prepare(`
-    INSERT INTO topics (id, subject_id, name, order_index, is_high_yield, estimated_study_mins)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
-
-  topics.forEach(t => {
-    insertTopic.run(t.id, t.subject_id, t.name, t.order_index, t.is_high_yield, t.estimated_study_mins);
-  });
+  const topicStmts = topics.map(t => ({
+    sql: `INSERT INTO topics (id, subject_id, name, order_index, is_high_yield, estimated_study_mins)
+          VALUES (?, ?, ?, ?, ?, ?)`,
+    args: [t.id, t.subject_id, t.name, t.order_index, t.is_high_yield, t.estimated_study_mins]
+  }));
+  await db.batch(topicStmts);
 
   // 3. Rich Lessons with Citations and 3 Quick Checks each
   const lessons = [
@@ -515,14 +512,12 @@ Physical Address is partitioned into bit fields:
     }
   ];
 
-  const insertLesson = db.prepare(`
-    INSERT INTO lessons (id, topic_id, title, content_markdown, quick_check_questions, citation)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
-
-  lessons.forEach(l => {
-    insertLesson.run(l.id, l.topic_id, l.title, l.content_markdown, l.quick_check_questions, l.citation);
-  });
+  const lessonStmts = lessons.map(l => ({
+    sql: `INSERT INTO lessons (id, topic_id, title, content_markdown, quick_check_questions, citation)
+          VALUES (?, ?, ?, ?, ?, ?)`,
+    args: [l.id, l.topic_id, l.title, l.content_markdown, l.quick_check_questions, l.citation]
+  }));
+  await db.batch(lessonStmts);
 
   // 4. Questions (Practice & PYQs across MCQ, MSQ, NAT)
   const questions = [
@@ -682,14 +677,12 @@ Physical Address is partitioned into bit fields:
     }
   ];
 
-  const insertQuestion = db.prepare(`
-    INSERT INTO questions (id, subject_id, topic_id, type, marks, difficulty, question_text, options, correct_answer, explanation, is_pyq, pyq_year, pyq_session)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  questions.forEach(q => {
-    insertQuestion.run(q.id, q.subject_id, q.topic_id, q.type, q.marks, q.difficulty, q.question_text, q.options, q.correct_answer, q.explanation, q.is_pyq, q.pyq_year, q.pyq_session);
-  });
+  const questionStmts = questions.map(q => ({
+    sql: `INSERT INTO questions (id, subject_id, topic_id, type, marks, difficulty, question_text, options, correct_answer, explanation, is_pyq, pyq_year, pyq_session)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [q.id, q.subject_id, q.topic_id, q.type, q.marks, q.difficulty, q.question_text, q.options, q.correct_answer, q.explanation, q.is_pyq, q.pyq_year, q.pyq_session]
+  }));
+  await db.batch(questionStmts);
 
   // 5. High-Yield Flashcards (Fed into SM-2)
   const flashcards = [
@@ -743,36 +736,40 @@ Physical Address is partitioned into bit fields:
     }
   ];
 
-  const insertFlashcard = db.prepare(`
-    INSERT INTO flashcards (id, subject_id, topic_id, front, back, citation)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
+  const nowIso = new Date().toISOString();
+  const flashcardStmts = flashcards.map(fc => ({
+    sql: `INSERT INTO flashcards (id, subject_id, topic_id, front, back, citation)
+          VALUES (?, ?, ?, ?, ?, ?)`,
+    args: [fc.id, fc.subject_id, fc.topic_id, fc.front, fc.back, fc.citation]
+  }));
+  await db.batch(flashcardStmts);
 
-  const insertSR = db.prepare(`
-    INSERT INTO spaced_repetition_cards (id, item_type, item_id, repetition, interval_days, ease_factor, due_date, last_reviewed_at, last_rating)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  flashcards.forEach(fc => {
-    insertFlashcard.run(fc.id, fc.subject_id, fc.topic_id, fc.front, fc.back, fc.citation);
-    // Initialize spaced repetition card due today
-    insertSR.run(`sr_${fc.id}`, 'flashcard', fc.id, 0, 0, 2.5, new Date().toISOString(), null, null);
-  });
+  const srStmts = flashcards.map(fc => ({
+    sql: `INSERT INTO spaced_repetition_cards (id, user_id, item_type, item_id, repetition, interval_days, ease_factor, due_date, last_reviewed_at, last_rating)
+          VALUES (?, 'guest', 'flashcard', ?, 0, 0, 2.5, ?, null, null)
+          ON CONFLICT(user_id, item_type, item_id) DO NOTHING`,
+    args: [`sr_guest_${fc.id}`, fc.id, nowIso]
+  }));
+  await db.batch(srStmts);
 
   // 6. Default Study Settings
-  const insertSetting = db.prepare('INSERT INTO study_settings (key, value) VALUES (?, ?)');
-  insertSetting.run('target_exam_date', '2027-02-06');
-  insertSetting.run('target_cutoff', '35.0');
-  insertSetting.run('current_mode', 'full'); // 'full' or 'light'
-  insertSetting.run('daily_target_lessons', '1');
-  insertSetting.run('daily_target_reviews', '5');
-  insertSetting.run('busy_periods', JSON.stringify([
-    { start: '2026-11-15', end: '2026-12-05', label: 'Semester End Exams (Light Mode Suggested)' }
-  ]));
+  const settingStmts = [
+    { sql: 'INSERT INTO study_settings (key, user_id, value) VALUES (?, ?, ?)', args: ['target_exam_date', 'guest', '2027-02-06'] },
+    { sql: 'INSERT INTO study_settings (key, user_id, value) VALUES (?, ?, ?)', args: ['target_cutoff', 'guest', '35.0'] },
+    { sql: 'INSERT INTO study_settings (key, user_id, value) VALUES (?, ?, ?)', args: ['current_mode', 'guest', 'full'] },
+    { sql: 'INSERT INTO study_settings (key, user_id, value) VALUES (?, ?, ?)', args: ['daily_target_lessons', 'guest', '1'] },
+    { sql: 'INSERT INTO study_settings (key, user_id, value) VALUES (?, ?, ?)', args: ['daily_target_reviews', 'guest', '5'] },
+    { sql: 'INSERT INTO study_settings (key, user_id, value) VALUES (?, ?, ?)', args: ['busy_periods', 'guest', JSON.stringify([{ start: '2026-11-15', end: '2026-12-05', label: 'Semester End Exams (Light Mode Suggested)' }])] },
+  ];
+  await db.batch(settingStmts);
+
+  try {
+    await seedAllLessons();
+  } catch (err) {
+    console.error('Error during seedAllLessons:', err.message);
+  }
 
   console.log('Seeding completed successfully!');
 }
-
-seedDatabase();
 
 module.exports = { seedDatabase };

@@ -126,7 +126,7 @@ async function runTestSuite() {
     console.log('\n[5/10] Testing SuperMemo SM-2 Spaced Repetition Engine...');
     const { db } = require('./server/db');
     // Ensure at least one test card is due for idempotent test execution
-    db.prepare("UPDATE spaced_repetition_cards SET due_date = datetime('now', '-1 minute') WHERE item_id = 'fc_eigen_trace' AND user_id = 'guest'").run();
+    await db.prepare("UPDATE spaced_repetition_cards SET due_date = datetime('now', '-1 minute') WHERE item_id = 'fc_eigen_trace' AND user_id = 'guest'").run();
 
     const dueRes = await request('GET', '/api/reviews/due');
     assert('Due reviews API returns list', dueRes.status === 200 && Array.isArray(dueRes.data));
@@ -344,16 +344,16 @@ async function runTestSuite() {
     try {
       const { db } = require('./server/db');
       const testNames = [userAName, userBName, userCName];
-      testNames.forEach(name => {
-        const u = db.prepare('SELECT id FROM users WHERE username = ?').get(name);
+      for (const name of testNames) {
+        const u = await db.prepare('SELECT id FROM users WHERE username = ?').get(name);
         if (u) {
-          db.prepare('DELETE FROM user_lesson_progress WHERE user_id = ?').run(u.id);
-          db.prepare('DELETE FROM spaced_repetition_cards WHERE user_id = ?').run(u.id);
-          db.prepare('DELETE FROM user_question_attempts WHERE user_id = ?').run(u.id);
-          db.prepare('DELETE FROM mock_sessions WHERE user_id = ?').run(u.id);
-          db.prepare('DELETE FROM users WHERE id = ?').run(u.id);
+          await db.prepare('DELETE FROM user_lesson_progress WHERE user_id = ?').run(u.id);
+          await db.prepare('DELETE FROM spaced_repetition_cards WHERE user_id = ?').run(u.id);
+          await db.prepare('DELETE FROM user_question_attempts WHERE user_id = ?').run(u.id);
+          await db.prepare('DELETE FROM mock_sessions WHERE user_id = ?').run(u.id);
+          await db.prepare('DELETE FROM users WHERE id = ?').run(u.id);
         }
-      });
+      }
     } catch {
       // Ignore cleanup error
     }

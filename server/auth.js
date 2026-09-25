@@ -80,7 +80,7 @@ function verifyToken(token) {
  * Express middleware that identifies user via Bearer token,
  * or defaults safely to 'guest' (Guest-First principle).
  */
-function authMiddleware(req, res, next) {
+async function authMiddleware(req, res, next) {
   req.userId = 'guest';
   req.user = null;
 
@@ -90,7 +90,7 @@ function authMiddleware(req, res, next) {
     const tokenData = verifyToken(token);
     if (tokenData && tokenData.userId) {
       try {
-        const user = db.prepare('SELECT id, username, email, created_at, last_login_at FROM users WHERE id = ?').get(tokenData.userId);
+        const user = await db.prepare('SELECT id, username, email, created_at, last_login_at FROM users WHERE id = ?').get(tokenData.userId);
         if (user) {
           req.userId = user.id;
           req.user = user;

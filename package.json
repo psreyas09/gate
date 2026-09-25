@@ -9,7 +9,8 @@
     "client": "npm --prefix client run dev",
     "dev": "concurrently -k -n \"api,web\" -c \"cyan,magenta\" \"npm run server\" \"npm run client\"",
     "build": "npm --prefix client run build",
-    "test": "node test_suite.js"
+    "test": "node test_suite.js",
+    "turso:push": "node scripts/push_to_turso.js"
   },
   "keywords": [
     "gate-cse",
