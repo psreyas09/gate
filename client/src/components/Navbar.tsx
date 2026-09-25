@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   User as UserIcon,
   LogOut,
+  Smartphone,
 } from 'lucide-react';
 import { OverviewData, User } from '../types';
 
@@ -28,6 +29,7 @@ interface NavbarProps {
   currentUser: User | null;
   onOpenAuth: () => void;
   onLogout: () => void;
+  onOpenDeviceSync: () => void;
 }
 
 const TABS: { id: NavTab; label: string; mobileLabel: string; icon: any; badgeKey?: 'dueReviews' }[] = [
@@ -48,6 +50,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentUser,
   onOpenAuth,
   onLogout,
+  onOpenDeviceSync,
 }) => {
   const isLightMode = overview?.settings?.current_mode === 'light';
 
@@ -113,6 +116,16 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Brain className="w-3.5 h-3.5 shrink-0" />
               <span>{overview?.dueReviews ?? 0}</span>
               <span className="hidden sm:inline">due</span>
+            </button>
+
+            {/* Sync Devices Button */}
+            <button
+              onClick={onOpenDeviceSync}
+              className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition-colors text-xs font-medium shrink-0"
+              title="Sync Account & Progress across Laptop, Phone, and Tablet"
+            >
+              <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Sync Devices</span>
             </button>
 
             {/* Backup Button - Hidden on mobile, accessible via More drawer */}
@@ -197,6 +210,7 @@ export const MobileBottomNav: React.FC<NavbarProps> = ({
   currentUser,
   onOpenAuth,
   onLogout,
+  onOpenDeviceSync,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isLightMode = overview?.settings?.current_mode === 'light';
@@ -403,6 +417,27 @@ export const MobileBottomNav: React.FC<NavbarProps> = ({
                 <div>
                   <div className="font-semibold">Data Backup</div>
                   <div className="text-[10px] text-slate-400">Export &amp; Restore</div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenDeviceSync();
+                }}
+                className="p-3 rounded-xl border bg-gradient-to-r from-cyan-950/40 via-indigo-950/40 to-slate-900 border-cyan-500/40 text-slate-200 flex items-center gap-2.5 text-left col-span-2 shadow-sm"
+              >
+                <Smartphone className="w-4 h-4 text-cyan-400 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold flex items-center gap-1.5">
+                    <span>Sync Between Devices</span>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold uppercase tracking-wider">
+                      QR &amp; Link
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-slate-400 truncate">
+                    Transfer account &amp; study progress to phone or laptop
+                  </div>
                 </div>
               </button>
             </div>

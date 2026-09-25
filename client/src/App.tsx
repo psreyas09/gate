@@ -9,8 +9,10 @@ import { CalendarView } from './components/CalendarView';
 import { ResourcesView } from './components/ResourcesView';
 import { BackupModal } from './components/BackupModal';
 import { AuthModal } from './components/AuthModal';
+import { DeviceSyncModal } from './components/DeviceSyncModal';
 import { OverviewData, User } from './types';
-import { Database, ShieldCheck } from 'lucide-react';
+import { Database, ShieldCheck, Smartphone, CheckCircle2 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 
 export function App() {
   const [currentTab, setCurrentTab] = useState<NavTab>('dashboard');
@@ -18,6 +20,8 @@ export function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isBackupOpen, setIsBackupOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isDeviceSyncOpen, setIsDeviceSyncOpen] = useState(false);
+  const [incomingSync, setIncomingSync] = useState<any | null>(null);
   const [drillWeakOnly, setDrillWeakOnly] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
 
@@ -44,7 +48,62 @@ export function App() {
   useEffect(() => {
     checkCurrentUser();
     fetchOverview();
+
+    // Check for incoming cross-device sync URL payload
+    if (window.location.hash.startsWith('#sync=')) {
+      try {
+        const raw = decodeURIComponent(escape(atob(window.location.hash.slice(6))));
+        const payload = JSON.parse(raw);
+        if (payload && (payload.user || payload.lessonProgress || payload.spacedCards)) {
+          setIncomingSync(payload);
+        }
+      } catch (err) {
+        console.error('Error decoding incoming device sync:', err);
+      }
+    }
   }, []);
+
+  const handleApplyIncomingSync = (payload: any) => {
+    try {
+      if (payload.token) {
+        localStorage.setItem('gate_auth_token', payload.token);
+      }
+      if (payload.user) {
+        localStorage.setItem('gate_current_user', JSON.stringify(payload.user));
+        setCurrentUser(payload.user);
+      }
+      if (payload.users && Array.isArray(payload.users)) {
+        localStorage.setItem('gate_users', JSON.stringify(payload.users));
+      }
+      if (payload.lessonProgress && Array.isArray(payload.lessonProgress)) {
+        localStorage.setItem('gate_user_lesson_progress', JSON.stringify(payload.lessonProgress));
+      }
+      if (payload.questionAttempts && Array.isArray(payload.questionAttempts)) {
+        localStorage.setItem('gate_user_question_attempts', JSON.stringify(payload.questionAttempts));
+      }
+      if (payload.spacedCards && Array.isArray(payload.spacedCards)) {
+        localStorage.setItem('gate_spaced_repetition_cards', JSON.stringify(payload.spacedCards));
+      }
+      if (payload.mockSessions && Array.isArray(payload.mockSessions)) {
+        localStorage.setItem('gate_mock_sessions', JSON.stringify(payload.mockSessions));
+      }
+      if (payload.mockAnswers && Array.isArray(payload.mockAnswers)) {
+        localStorage.setItem('gate_mock_answers', JSON.stringify(payload.mockAnswers));
+      }
+      if (payload.settings && typeof payload.settings === 'object') {
+        localStorage.setItem('gate_study_settings', JSON.stringify(payload.settings));
+      }
+
+      fetchOverview();
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.6 },
+      });
+    } catch (err) {
+      console.error('Failed to apply incoming sync:', err);
+    }
+  };
 
   const handleAuthSuccess = (user: User) => {
     setCurrentUser(user);
@@ -89,6 +148,7 @@ export function App() {
         currentUser={currentUser}
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onLogout={handleLogout}
+        onOpenDeviceSync={() => setIsDeviceSyncOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -140,6 +200,7 @@ export function App() {
         currentUser={currentUser}
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onLogout={handleLogout}
+        onOpenDeviceSync={() => setIsDeviceSyncOpen(true)}
       />
 
       {/* Footer (Desktop only - mobile uses dedicated bottom nav & More drawer) */}
@@ -152,7 +213,13 @@ export function App() {
             </span>
           </div>
           <div className="flex items-center gap-3 text-[11px]">
-            <span>GATE CSE 2027 Platform</span>
+            <button
+              onClick={() => setIsDeviceSyncOpen(true)}
+              className="text-cyan-400 hover:text-cyan-300 underline font-medium flex items-center gap-1"
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              <span>Sync to Mobile</span>
+            </button>
             <span>•</span>
             <button
               onClick={() => setIsBackupOpen(true)}
@@ -177,6 +244,72 @@ export function App() {
         onClose={() => setIsAuthModalOpen(false)}
         onSuccess={handleAuthSuccess}
       />
+
+      {/* Cross-Device Instant QR & Link Sync Modal */}
+      <DeviceSyncModal
+        isOpen={isDeviceSyncOpen}
+        onClose={() => setIsDeviceSyncOpen(false)}
+        currentUser={currentUser}
+        overview={overview}
+        onSyncApplied={fetchOverview}
+      />
+
+      {/* Incoming Cross-Device Sync Confirmation Prompt */}
+      {incomingSync && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-md p-6 bg-slate-900 border border-cyan-500/40 rounded-2xl shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-cyan-500/20 text-cyan-400">
+                <Smartphone className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Device Sync Detected!</h3>
+                <p className="text-xs text-slate-400">Incoming study progress from another device</p>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs space-y-1.5 text-slate-300">
+              <p>
+                <strong>Account:</strong>{' '}
+                <span className="text-cyan-300 font-semibold">{incomingSync.user?.username || 'Guest Learner'}</span>
+              </p>
+              <p>
+                <strong>Completed Lessons:</strong> {incomingSync.lessonProgress?.length || 0}
+              </p>
+              <p>
+                <strong>Spaced Reviews:</strong> {incomingSync.spacedCards?.length || 0}
+              </p>
+              <p>
+                <strong>Streak:</strong> {incomingSync.settings?.streak || 0} days
+              </p>
+            </div>
+
+            <div className="flex gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setIncomingSync(null);
+                  window.history.replaceState(null, '', window.location.pathname);
+                }}
+                className="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
+              >
+                Ignore
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleApplyIncomingSync(incomingSync);
+                  setIncomingSync(null);
+                  window.history.replaceState(null, '', window.location.pathname);
+                }}
+                className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-lg shadow-cyan-900/40 transition-all active:scale-[0.99]"
+              >
+                Accept &amp; Sync
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
