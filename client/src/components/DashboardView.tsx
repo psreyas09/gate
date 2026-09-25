@@ -42,42 +42,44 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const readinessScore = Math.min(100, Math.round(tier1Pct * 0.7 + tier2Pct * 0.3));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* 35+ Qualifying Target Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950/60 to-slate-900 border border-indigo-500/30 p-6 sm:p-8 shadow-xl">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950/60 to-slate-900 border border-indigo-500/30 p-4 sm:p-8 shadow-xl">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5 sm:gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-semibold">
-              <Target className="w-3.5 h-3.5" /> Strategy: 35+/100 High-Yield Qualification
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-[11px] sm:text-xs font-semibold">
+              <Target className="w-3.5 h-3.5 shrink-0" /> Strategy: 35+/100 High-Yield Qualification
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+            <h1 className="text-xl sm:text-3xl font-bold text-white tracking-tight">
               GATE CSE 2027 Preparation
             </h1>
-            <p className="text-sm text-slate-300 leading-relaxed">
-              Targeting qualification without burnout. We prioritize Tier 1 (Aptitude, Engg Math, Digital Logic, DBMS, C & DS) and Tier 2 core fundamentals, explicitly skipping exhaustive edge cases.
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Targeting qualification without burnout. We prioritize Tier 1 (Aptitude, Engg Math, Digital Logic, DBMS, C &amp; DS) and Tier 2 core fundamentals, explicitly skipping exhaustive edge cases.
             </p>
-            <div className="flex flex-wrap items-center gap-4 pt-2 text-xs text-slate-400">
-              <div className="flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-cyan-400" />
-                <span>{daysRemaining} Days to Exam</span>
+
+            {/* Quick Metrics Badges */}
+            <div className="grid grid-cols-1 xs:grid-cols-3 sm:flex sm:flex-wrap items-center gap-2 sm:gap-4 pt-2 text-[11px] sm:text-xs text-slate-400">
+              <div className="flex items-center gap-1.5 p-2 rounded-lg bg-slate-850/60 sm:p-0 sm:bg-transparent border border-slate-800 sm:border-0">
+                <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400 shrink-0" />
+                <span><strong className="text-slate-200">{daysRemaining}</strong> Days to Exam</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <Award className="w-4 h-4 text-emerald-400" />
-                <span>Target Cutoff: {cutoff} / 100</span>
+              <div className="flex items-center gap-1.5 p-2 rounded-lg bg-slate-850/60 sm:p-0 sm:bg-transparent border border-slate-800 sm:border-0">
+                <Award className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
+                <span>Target: <strong className="text-slate-200">{cutoff}</strong>/100</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-indigo-400" />
-                <span>{overview.completedLessons} of {overview.totalLessons} Lessons Mastered</span>
+              <div className="flex items-center gap-1.5 p-2 rounded-lg bg-slate-850/60 sm:p-0 sm:bg-transparent border border-slate-800 sm:border-0">
+                <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-400 shrink-0" />
+                <span><strong className="text-slate-200">{overview.completedLessons}</strong> of {overview.totalLessons} Mastered</span>
               </div>
             </div>
           </div>
 
           {/* Readiness Gauge */}
-          <div className="flex flex-col items-center justify-center p-5 rounded-xl bg-slate-900/80 border border-slate-700/60 min-w-[200px] text-center">
-            <span className="text-xs uppercase tracking-wider font-semibold text-slate-400">
+          <div className="flex flex-col items-center justify-center p-4 sm:p-5 rounded-xl bg-slate-900/90 border border-slate-700/60 w-full md:w-auto md:min-w-[210px] text-center shadow-lg">
+            <span className="text-[11px] sm:text-xs uppercase tracking-wider font-semibold text-slate-400">
               Qualifying Readiness
             </span>
-            <div className="my-2 text-4xl font-extrabold bg-gradient-to-r from-cyan-400 to-emerald-400 bg-clip-text text-transparent">
+            <div className="my-1.5 sm:my-2 text-3xl sm:text-4xl font-extrabold bg-gradient-to-r from-cyan-400 to-emerald-400 bg-clip-text text-transparent">
               {readinessScore}%
             </div>
             <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden mb-2">
@@ -86,34 +88,34 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 style={{ width: `${readinessScore}%` }}
               />
             </div>
-            <span className="text-[11px] text-slate-400">
-              Based on Tier 1 & Tier 2 Mastery
+            <span className="text-[10px] sm:text-[11px] text-slate-400">
+              Based on Tier 1 &amp; Tier 2 Mastery
             </span>
           </div>
         </div>
       </div>
 
       {/* Quick Action Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-5">
         {/* Card 1: Spaced Repetition Due Queue */}
-        <div className="p-5 rounded-xl bg-slate-900/70 border border-slate-800 hover:border-indigo-500/40 transition-all flex flex-col justify-between">
+        <div className="p-4 sm:p-5 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-indigo-500/40 transition-all flex flex-col justify-between shadow-md">
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
-                <Brain className="w-4 h-4" /> Spaced Repetition
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <span className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                <Brain className="w-4 h-4 shrink-0" /> Spaced Repetition
               </span>
-              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300">
+              <span className="px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-indigo-500/20 text-indigo-300">
                 {overview.dueReviews} Due
               </span>
             </div>
-            <h3 className="text-base font-semibold text-white mb-1">SM-2 Daily Review</h3>
+            <h3 className="text-sm sm:text-base font-semibold text-white mb-1">SM-2 Daily Review</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
               Review active flashcards and previously missed questions scheduled by the SM-2 algorithm.
             </p>
           </div>
           <button
             onClick={() => onNavigate('spaced_repetition')}
-            className="mt-4 flex items-center justify-between w-full px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition-colors"
+            className="mt-4 flex items-center justify-between w-full px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-medium text-xs transition-colors min-h-[44px]"
           >
             <span>Review {overview.dueReviews} Cards</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -121,24 +123,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Card 2: Weak-Area Drilling */}
-        <div className="p-5 rounded-xl bg-slate-900/70 border border-slate-800 hover:border-amber-500/40 transition-all flex flex-col justify-between">
+        <div className="p-4 sm:p-5 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-amber-500/40 transition-all flex flex-col justify-between shadow-md">
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                <AlertTriangle className="w-4 h-4" /> Weak-Area Drill
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <span className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 shrink-0" /> Weak-Area Drill
               </span>
-              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300">
+              <span className="px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-amber-500/20 text-amber-300">
                 {(overview?.weakTopics || []).length} Identified
               </span>
             </div>
-            <h3 className="text-base font-semibold text-white mb-1">Targeted Weakness Fix</h3>
+            <h3 className="text-sm sm:text-base font-semibold text-white mb-1">Targeted Weakness Fix</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
               One-click practice session pulling directly from topics with low accuracy (&lt;60%).
             </p>
           </div>
           <button
             onClick={onDrillWeakAreas}
-            className="mt-4 flex items-center justify-between w-full px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-medium text-xs transition-colors"
+            className="mt-4 flex items-center justify-between w-full px-4 py-2.5 rounded-lg bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white font-medium text-xs transition-colors min-h-[44px]"
           >
             <span>Start Weak-Area Drill</span>
             <Zap className="w-3.5 h-3.5" />
@@ -146,24 +148,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Card 3: Timed Mock Simulation */}
-        <div className="p-5 rounded-xl bg-slate-900/70 border border-slate-800 hover:border-cyan-500/40 transition-all flex flex-col justify-between">
+        <div className="p-4 sm:p-5 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-cyan-500/40 transition-all flex flex-col justify-between shadow-md">
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
-                <TrendingUp className="w-4 h-4" /> Benchmark Test
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <span className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+                <TrendingUp className="w-4 h-4 shrink-0" /> Benchmark Test
               </span>
-              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-cyan-500/20 text-cyan-300">
+              <span className="px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-cyan-500/20 text-cyan-300">
                 GATE Negative Marking
               </span>
             </div>
-            <h3 className="text-base font-semibold text-white mb-1">Timed Mock Test</h3>
+            <h3 className="text-sm sm:text-base font-semibold text-white mb-1">Timed Mock Test</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
               Real GATE conditions (-1/3, -2/3 penalty on MCQs) with immediate 35-mark qualifying comparison.
             </p>
           </div>
           <button
             onClick={() => onNavigate('mock')}
-            className="mt-4 flex items-center justify-between w-full px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-medium text-xs transition-colors"
+            className="mt-4 flex items-center justify-between w-full px-4 py-2.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700 text-white font-medium text-xs transition-colors min-h-[44px]"
           >
             <span>Launch Mock Exam</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -172,17 +174,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {/* Curriculum Tiers Progress Overview */}
-      <div className="p-6 rounded-xl bg-slate-900/60 border border-slate-800 space-y-5">
-        <div className="flex items-center justify-between">
+      <div className="p-4 sm:p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-4 sm:space-y-5">
+        <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2">
           <div>
-            <h3 className="text-base font-semibold text-slate-100">Curriculum Structure by Tier</h3>
-            <p className="text-xs text-slate-400">Strictly organized by qualifying score priority</p>
+            <h3 className="text-sm sm:text-base font-semibold text-slate-100">Curriculum Structure by Tier</h3>
+            <p className="text-[11px] sm:text-xs text-slate-400">Strictly organized by qualifying score priority</p>
           </div>
           <button
             onClick={() => onNavigate('lessons')}
-            className="text-xs text-cyan-400 hover:text-cyan-300 font-medium flex items-center gap-1"
+            className="text-xs text-cyan-400 hover:text-cyan-300 font-medium flex items-center gap-1 self-start xs:self-auto"
           >
-            View Full Syllabus <ArrowRight className="w-3 h-3" />
+            <span>View Full Syllabus</span> <ArrowRight className="w-3 h-3" />
           </button>
         </div>
 

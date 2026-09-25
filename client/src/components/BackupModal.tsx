@@ -70,93 +70,94 @@ export const BackupModal: React.FC<BackupModalProps> = ({ isOpen, onClose, onRes
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="bg-slate-900 border border-slate-700 w-full max-w-lg rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-3 sm:p-4">
+      <div className="bg-slate-900 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60 shrink-0">
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
               <Shield className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-slate-100">Persistence & Data Backup</h3>
-              <p className="text-xs text-slate-400">Zero-loss guarantee: SQLite DB + Portable JSON</p>
+              <h3 className="text-sm sm:text-base font-semibold text-slate-100">Persistence &amp; Data Backup</h3>
+              <p className="text-[11px] sm:text-xs text-slate-400">Zero-loss guarantee: SQLite DB + Portable JSON</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-200 transition-colors p-1 rounded-lg hover:bg-slate-800"
+            className="text-slate-400 hover:text-slate-200 transition-colors p-1.5 rounded-lg hover:bg-slate-800"
+            aria-label="Close modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-5">
+        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto">
           {statusMessage && (
             <div
-              className={`p-3 rounded-lg text-sm flex items-start gap-2.5 ${
+              className={`p-3 rounded-xl text-xs sm:text-sm flex items-start gap-2.5 ${
                 statusMessage.type === 'success'
                   ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-300'
                   : 'bg-rose-500/15 border border-rose-500/30 text-rose-300'
               }`}
             >
               {statusMessage.type === 'success' ? (
-                <CheckCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 shrink-0 mt-0.5" />
               ) : (
-                <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 shrink-0 mt-0.5" />
               )}
               <span>{statusMessage.text}</span>
             </div>
           )}
 
           {/* Action 1: Export JSON */}
-          <div className="flex items-center justify-between p-4 rounded-lg bg-slate-800/60 border border-slate-700/60 hover:border-slate-600 transition-all">
+          <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl bg-slate-800/60 border border-slate-700/60 hover:border-slate-600 transition-all">
             <div className="space-y-0.5">
-              <div className="font-medium text-sm text-slate-200 flex items-center gap-1.5">
-                <Download className="w-4 h-4 text-cyan-400" />
-                Export Backup (JSON)
+              <div className="font-semibold text-xs sm:text-sm text-slate-200 flex items-center gap-1.5">
+                <Download className="w-4 h-4 text-cyan-400 shrink-0" />
+                <span>Export Backup (JSON)</span>
               </div>
-              <p className="text-xs text-slate-400">Download complete study progress, SM-2 cards, and test history.</p>
+              <p className="text-[11px] sm:text-xs text-slate-400">Download complete study progress, SM-2 cards, and test history.</p>
             </div>
             <button
               onClick={handleExportJSON}
-              className="px-3.5 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-medium text-xs shadow-sm transition-colors"
+              className="w-full xs:w-auto px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700 text-white font-medium text-xs shadow-sm transition-colors min-h-[38px] flex items-center justify-center shrink-0"
             >
-              Export
+              Export JSON
             </button>
           </div>
 
           {/* Action 2: Direct SQLite DB */}
-          <div className="flex items-center justify-between p-4 rounded-lg bg-slate-800/60 border border-slate-700/60 hover:border-slate-600 transition-all">
+          <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl bg-slate-800/60 border border-slate-700/60 hover:border-slate-600 transition-all">
             <div className="space-y-0.5">
-              <div className="font-medium text-sm text-slate-200 flex items-center gap-1.5">
-                <Database className="w-4 h-4 text-indigo-400" />
-                Direct SQLite File (gate_study.db)
+              <div className="font-semibold text-xs sm:text-sm text-slate-200 flex items-center gap-1.5">
+                <Database className="w-4 h-4 text-indigo-400 shrink-0" />
+                <span>Direct SQLite File (gate_study.db)</span>
               </div>
-              <p className="text-xs text-slate-400">Download the raw disk database file from your local server.</p>
+              <p className="text-[11px] sm:text-xs text-slate-400">Download the raw disk database file from your local server.</p>
             </div>
             <button
               onClick={handleDownloadDB}
-              className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs shadow-sm transition-colors"
+              className="w-full xs:w-auto px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-medium text-xs shadow-sm transition-colors min-h-[38px] flex items-center justify-center shrink-0"
             >
               Download .db
             </button>
           </div>
 
           {/* Action 3: Restore / Import JSON */}
-          <div className="p-4 rounded-lg bg-slate-800/60 border border-slate-700/60 space-y-3">
+          <div className="p-3.5 sm:p-4 rounded-xl bg-slate-800/60 border border-slate-700/60 space-y-2.5">
             <div className="space-y-0.5">
-              <div className="font-medium text-sm text-slate-200 flex items-center gap-1.5">
-                <Upload className="w-4 h-4 text-emerald-400" />
-                Restore Progress from Backup
+              <div className="font-semibold text-xs sm:text-sm text-slate-200 flex items-center gap-1.5">
+                <Upload className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Restore Progress from Backup</span>
               </div>
-              <p className="text-xs text-slate-400">Upload a previously exported JSON backup to resume on any machine.</p>
+              <p className="text-[11px] sm:text-xs text-slate-400">Upload a previously exported JSON backup to resume on any machine.</p>
             </div>
             <div>
-              <label className="flex items-center justify-center gap-2 px-4 py-2 border border-dashed border-slate-600 hover:border-emerald-500 rounded-lg cursor-pointer bg-slate-900/60 hover:bg-slate-900 transition-colors text-xs text-slate-300">
-                <RefreshCw className={`w-4 h-4 ${importing ? 'animate-spin text-emerald-400' : 'text-slate-400'}`} />
-                {importing ? 'Restoring Database...' : 'Select or Drop .json Backup File'}
+              <label className="flex items-center justify-center gap-2 px-4 py-3 border border-dashed border-slate-600 hover:border-emerald-500 rounded-lg cursor-pointer bg-slate-900/60 hover:bg-slate-900 transition-colors text-xs text-slate-300 min-h-[44px]">
+                <RefreshCw className={`w-4 h-4 shrink-0 ${importing ? 'animate-spin text-emerald-400' : 'text-slate-400'}`} />
+                <span>{importing ? 'Restoring Database...' : 'Select or Drop .json Backup File'}</span>
                 <input
                   type="file"
                   accept=".json"
@@ -169,11 +170,11 @@ export const BackupModal: React.FC<BackupModalProps> = ({ isOpen, onClose, onRes
           </div>
 
           {/* Local Snapshot trigger */}
-          <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-xs text-slate-400">
-            <span>Server snapshots automatically saved to /data/backups/</span>
+          <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 pt-2 border-t border-slate-800 text-[11px] sm:text-xs text-slate-400">
+            <span>Server snapshots saved to data/backups/</span>
             <button
               onClick={handleCreateSnapshot}
-              className="text-cyan-400 hover:text-cyan-300 underline font-medium"
+              className="text-cyan-400 hover:text-cyan-300 underline font-medium self-start xs:self-auto p-1"
             >
               Create Snapshot Now
             </button>

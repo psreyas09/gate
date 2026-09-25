@@ -122,32 +122,32 @@ export const SpacedRepetitionView: React.FC<SpacedRepetitionViewProps> = ({ onRe
 
           {/* Flashcard Card Body */}
           <div
-            className={`min-h-[300px] p-6 sm:p-8 rounded-2xl border transition-all duration-200 flex flex-col justify-between shadow-2xl ${
+            className={`min-h-[260px] sm:min-h-[300px] p-4 sm:p-8 rounded-2xl border transition-all duration-200 flex flex-col justify-between shadow-2xl ${
               isFlipped
                 ? 'bg-slate-900 border-indigo-500/40 shadow-indigo-950/30'
                 : 'bg-slate-900/90 border-slate-800 hover:border-slate-700'
             }`}
           >
             {/* Meta Tags */}
-            <div className="flex items-center justify-between gap-2 pb-4 border-b border-slate-800/80">
+            <div className="flex items-center justify-between gap-2 pb-3 sm:pb-4 border-b border-slate-800/80">
               <div className="flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-800 text-slate-300 border border-slate-700">
                   {currentCard.item_type}
                 </span>
                 {currentCard.subject_name && (
-                  <span className="text-xs text-cyan-300 font-semibold">{currentCard.subject_name}</span>
+                  <span className="text-xs text-cyan-300 font-semibold truncate max-w-[180px] sm:max-w-none">{currentCard.subject_name}</span>
                 )}
               </div>
               {currentCard.is_high_yield === 1 && (
-                <span className="text-[10px] font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30">
+                <span className="text-[10px] font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30 shrink-0">
                   ★ High-Yield
                 </span>
               )}
             </div>
 
             {/* Front Prompt */}
-            <div className="py-6">
-              <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-400 block mb-2">
+            <div className="py-4 sm:py-6">
+              <span className="text-[10px] sm:text-[11px] uppercase tracking-wider font-semibold text-slate-400 block mb-2">
                 Prompt / Concept
               </span>
               <div className="text-base sm:text-lg font-medium text-slate-100 leading-relaxed">
@@ -161,11 +161,11 @@ export const SpacedRepetitionView: React.FC<SpacedRepetitionViewProps> = ({ onRe
 
             {/* Back (Revealed when flipped) */}
             {isFlipped ? (
-              <div className="pt-4 border-t border-slate-800 animate-in fade-in space-y-3">
-                <span className="text-[11px] uppercase tracking-wider font-semibold text-emerald-400 block">
+              <div className="pt-3 sm:pt-4 border-t border-slate-800 animate-in fade-in space-y-3">
+                <span className="text-[10px] sm:text-[11px] uppercase tracking-wider font-semibold text-emerald-400 block">
                   Solution / Explanation
                 </span>
-                <div className="text-sm text-slate-200 leading-relaxed bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+                <div className="text-xs sm:text-sm text-slate-200 leading-relaxed bg-slate-950/60 p-3.5 sm:p-4 rounded-xl border border-slate-800">
                   {currentCard.item_type === 'flashcard' ? (
                     <MathText text={currentCard.flashcard_back || ''} />
                   ) : (
@@ -188,9 +188,9 @@ export const SpacedRepetitionView: React.FC<SpacedRepetitionViewProps> = ({ onRe
             ) : (
               <button
                 onClick={() => setIsFlipped(true)}
-                className="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 flex items-center justify-center gap-2 transition-colors mt-4"
+                className="w-full py-3 sm:py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-750 text-slate-200 text-xs sm:text-sm font-semibold border border-slate-700 flex items-center justify-center gap-2 transition-colors mt-4 min-h-[48px] touch-manipulation"
               >
-                <RotateCw className="w-4 h-4 text-cyan-400" />
+                <RotateCw className="w-4 h-4 text-cyan-400 shrink-0" />
                 <span>Show Answer &amp; Explanation</span>
               </button>
             )}
@@ -209,40 +209,40 @@ export const SpacedRepetitionView: React.FC<SpacedRepetitionViewProps> = ({ onRe
               <span className="text-[11px] text-center block text-slate-400 font-medium">
                 Rate your recall difficulty to compute next SM-2 interval:
               </span>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                 {/* 1: Again */}
                 <button
                   onClick={() => handleRate(1)}
-                  className="p-3 rounded-xl bg-rose-950/50 hover:bg-rose-900/60 border border-rose-800/80 text-rose-300 text-xs font-bold transition-all text-center flex flex-col items-center gap-1 shadow-sm"
+                  className="p-3 rounded-xl bg-rose-950/50 hover:bg-rose-900/60 active:bg-rose-900 border border-rose-800/80 text-rose-300 text-xs font-bold transition-all text-center flex flex-col items-center justify-center gap-1 shadow-sm min-h-[52px] touch-manipulation active:scale-[0.98]"
                 >
-                  <span>Again</span>
+                  <span className="text-xs sm:text-sm">Again</span>
                   <span className="text-[10px] font-normal opacity-80">&lt; 1 day</span>
                 </button>
 
                 {/* 2: Hard */}
                 <button
                   onClick={() => handleRate(2)}
-                  className="p-3 rounded-xl bg-amber-950/50 hover:bg-amber-900/60 border border-amber-800/80 text-amber-300 text-xs font-bold transition-all text-center flex flex-col items-center gap-1 shadow-sm"
+                  className="p-3 rounded-xl bg-amber-950/50 hover:bg-amber-900/60 active:bg-amber-900 border border-amber-800/80 text-amber-300 text-xs font-bold transition-all text-center flex flex-col items-center justify-center gap-1 shadow-sm min-h-[52px] touch-manipulation active:scale-[0.98]"
                 >
-                  <span>Hard</span>
+                  <span className="text-xs sm:text-sm">Hard</span>
                   <span className="text-[10px] font-normal opacity-80">~1–2 days</span>
                 </button>
 
                 {/* 3: Good */}
                 <button
                   onClick={() => handleRate(3)}
-                  className="p-3 rounded-xl bg-cyan-950/50 hover:bg-cyan-900/60 border border-cyan-800/80 text-cyan-300 text-xs font-bold transition-all text-center flex flex-col items-center gap-1 shadow-sm"
+                  className="p-3 rounded-xl bg-cyan-950/50 hover:bg-cyan-900/60 active:bg-cyan-900 border border-cyan-800/80 text-cyan-300 text-xs font-bold transition-all text-center flex flex-col items-center justify-center gap-1 shadow-sm min-h-[52px] touch-manipulation active:scale-[0.98]"
                 >
-                  <span>Good</span>
+                  <span className="text-xs sm:text-sm">Good</span>
                   <span className="text-[10px] font-normal opacity-80">~4–6 days</span>
                 </button>
 
                 {/* 4: Easy */}
                 <button
                   onClick={() => handleRate(4)}
-                  className="p-3 rounded-xl bg-emerald-950/50 hover:bg-emerald-900/60 border border-emerald-800/80 text-emerald-300 text-xs font-bold transition-all text-center flex flex-col items-center gap-1 shadow-sm"
+                  className="p-3 rounded-xl bg-emerald-950/50 hover:bg-emerald-900/60 active:bg-emerald-900 border border-emerald-800/80 text-emerald-300 text-xs font-bold transition-all text-center flex flex-col items-center justify-center gap-1 shadow-sm min-h-[52px] touch-manipulation active:scale-[0.98]"
                 >
-                  <span>Easy</span>
+                  <span className="text-xs sm:text-sm">Easy</span>
                   <span className="text-[10px] font-normal opacity-80">~8+ days</span>
                 </button>
               </div>

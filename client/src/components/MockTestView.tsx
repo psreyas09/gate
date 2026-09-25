@@ -221,51 +221,64 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
     );
   }
 
+  const [showPaletteMobile, setShowPaletteMobile] = useState(false);
+
   // Active Running Mock
   if (testState === 'running' && sessionData) {
     const currentQ = sessionData.questions[currentQuestionIndex];
     const userAns = prevUserAnswer(currentQ.id);
 
     return (
-      <div className="max-w-6xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
         {/* Top Floating Bar */}
-        <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between shadow-lg">
+        <div className="p-3 sm:p-4 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between shadow-lg gap-2">
           <div>
-            <h2 className="text-sm font-bold text-slate-200">{sessionData.title}</h2>
-            <span className="text-xs text-slate-400">
-              Question {currentQuestionIndex + 1} of {sessionData.questions.length}
+            <h2 className="text-xs sm:text-sm font-bold text-slate-200 truncate max-w-[160px] xs:max-w-xs sm:max-w-none">{sessionData.title}</h2>
+            <span className="text-[11px] sm:text-xs text-slate-400">
+              Q{currentQuestionIndex + 1} of {sessionData.questions.length}
             </span>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-700 font-mono text-sm font-bold text-cyan-400">
-              <Timer className="w-4 h-4 text-cyan-400" />
+          <div className="flex items-center gap-2 sm:gap-4">
+            <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-slate-950 border border-slate-700 font-mono text-xs sm:text-sm font-bold text-cyan-400">
+              <Timer className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400 shrink-0" />
               <span>{formatTimer(timeLeftSeconds)}</span>
             </div>
             <button
               onClick={handleSubmitTest}
-              className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-sm transition-colors"
+              className="px-3 sm:px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition-colors min-h-[36px]"
             >
-              Submit Exam
+              Submit
             </button>
           </div>
         </div>
 
+        {/* Mobile Toggle for Palette */}
+        <div className="lg:hidden">
+          <button
+            onClick={() => setShowPaletteMobile(!showPaletteMobile)}
+            className="w-full py-2 px-3 rounded-xl bg-slate-900 border border-slate-800 text-xs font-medium text-slate-300 flex items-center justify-between"
+          >
+            <span>Question Palette ({currentQuestionIndex + 1} / {sessionData.questions.length})</span>
+            <span className="text-cyan-400 font-bold">{showPaletteMobile ? '▲ Hide' : '▼ View Palette'}</span>
+          </button>
+        </div>
+
         {/* Main Grid: Question View + Question Palette */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
           {/* Question area (8 cols) */}
-          <div className="lg:col-span-8 space-y-5">
-            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-5 shadow-xl">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+          <div className="lg:col-span-8 space-y-4 sm:space-y-5">
+            <div className="p-4 sm:p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4 sm:space-y-5 shadow-xl">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 sm:pb-3 border-b border-slate-800">
                 <div className="flex items-center gap-2">
                   <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-800 text-slate-300 border border-slate-700">
                     {currentQ.type} • {currentQ.marks} Mark{currentQ.marks > 1 ? 's' : ''}
                   </span>
-                  <span className="text-xs text-slate-400">{currentQ.subject_name}</span>
+                  <span className="text-[11px] sm:text-xs text-slate-400">{currentQ.subject_name}</span>
                 </div>
-                <div className="text-[11px] text-rose-400">
+                <div className="text-[10px] sm:text-[11px] text-rose-400 font-medium">
                   {currentQ.type === 'MCQ'
-                    ? `Negative Marking: -${currentQ.marks === 1 ? '0.33' : '0.67'}`
+                    ? `Penalty: -${currentQ.marks === 1 ? '0.33' : '0.67'}`
                     : 'No Negative Marking'}
                 </div>
               </div>
@@ -277,14 +290,15 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
 
               {/* Input options */}
               {currentQ.type === 'NAT' ? (
-                <div className="space-y-2 pt-3">
+                <div className="space-y-2 pt-2 sm:pt-3">
                   <span className="text-xs text-slate-400 block">Type your numeric answer:</span>
                   <input
                     type="text"
+                    inputMode="decimal"
                     value={userAns || ''}
                     onChange={e => handleNatInput(currentQ.id, e.target.value)}
-                    placeholder="e.g. 14"
-                    className="w-48 px-3.5 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white font-mono text-sm focus:outline-none focus:border-cyan-400"
+                    placeholder="e.g. 14 or 2.5"
+                    className="w-full xs:w-48 px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-white font-mono text-sm focus:outline-none focus:border-cyan-400 min-h-[44px]"
                   />
                 </div>
               ) : (
@@ -301,14 +315,14 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
                         <button
                           key={oIdx}
                           onClick={() => handleOptionSelect(currentQ, char)}
-                          className={`p-3 rounded-xl border text-left text-xs sm:text-sm transition-all flex items-start gap-2.5 ${
+                          className={`p-3 rounded-xl border text-left text-xs sm:text-sm transition-all flex items-start gap-2.5 min-h-[46px] touch-manipulation active:scale-[0.99] ${
                             isSelected
                               ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200 font-semibold'
                               : 'bg-slate-950/60 border-slate-800 hover:border-slate-700 text-slate-300'
                           }`}
                         >
-                          <span className="font-bold opacity-75">{char}.</span>
-                          <span className="flex-1">{opt}</span>
+                          <span className="font-bold opacity-75 shrink-0">{char}.</span>
+                          <span className="flex-1 leading-snug">{opt}</span>
                         </button>
                       );
                     })}
@@ -317,7 +331,7 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
               )}
 
               {/* Navigation controls */}
-              <div className="flex items-center justify-between pt-4 border-t border-slate-800">
+              <div className="flex flex-col xs:flex-row items-stretch xs:items-center justify-between gap-3 pt-3 sm:pt-4 border-t border-slate-800">
                 <button
                   onClick={() =>
                     setMarkedForReview(prev => ({
@@ -325,28 +339,30 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
                       [currentQ.id]: !prev[currentQ.id]
                     }))
                   }
-                  className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+                  className={`px-3 py-2 rounded-lg border text-xs font-medium transition-colors min-h-[40px] text-center ${
                     markedForReview[currentQ.id]
-                      ? 'bg-purple-500/20 border-purple-500 text-purple-300'
+                      ? 'bg-purple-500/20 border-purple-500 text-purple-300 font-semibold'
                       : 'border-slate-700 text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   {markedForReview[currentQ.id] ? 'Marked for Review ★' : 'Mark for Review'}
                 </button>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-end gap-2">
                   <button
                     disabled={currentQuestionIndex === 0}
                     onClick={() => setCurrentQuestionIndex(prev => prev - 1)}
-                    className="p-2 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+                    className="p-2 sm:px-3 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40 min-h-[40px] min-w-[40px] flex items-center justify-center gap-1 text-xs"
                   >
                     <ChevronLeft className="w-4 h-4" />
+                    <span className="hidden xs:inline">Prev</span>
                   </button>
                   <button
                     disabled={currentQuestionIndex === sessionData.questions.length - 1}
                     onClick={() => setCurrentQuestionIndex(prev => prev + 1)}
-                    className="p-2 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+                    className="p-2 sm:px-3 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40 min-h-[40px] min-w-[40px] flex items-center justify-center gap-1 text-xs"
                   >
+                    <span className="hidden xs:inline">Next</span>
                     <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
@@ -354,9 +370,9 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
             </div>
           </div>
 
-          {/* Palette area (4 cols) */}
-          <div className="lg:col-span-4">
-            <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
+          {/* Palette area (4 cols, toggled on mobile) */}
+          <div className={`lg:col-span-4 ${showPaletteMobile ? 'block' : 'hidden lg:block'}`}>
+            <div className="p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-4 shadow-lg">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Question Palette</h3>
               <div className="grid grid-cols-5 gap-2">
                 {sessionData.questions.map((q, idx) => {
@@ -371,14 +387,17 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
                     btnColor = 'bg-emerald-900/60 border-emerald-500 text-emerald-200';
                   }
                   if (isCurrent) {
-                    btnColor += ' ring-2 ring-cyan-400';
+                    btnColor += ' ring-2 ring-cyan-400 font-bold';
                   }
 
                   return (
                     <button
                       key={q.id}
-                      onClick={() => setCurrentQuestionIndex(idx)}
-                      className={`h-9 rounded-lg border font-mono text-xs font-bold flex items-center justify-center transition-all ${btnColor}`}
+                      onClick={() => {
+                        setCurrentQuestionIndex(idx);
+                        setShowPaletteMobile(false);
+                      }}
+                      className={`h-9 rounded-lg border font-mono text-xs font-bold flex items-center justify-center transition-all touch-manipulation active:scale-95 ${btnColor}`}
                     >
                       {idx + 1}
                     </button>
@@ -411,16 +430,16 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
   // Result Breakdown
   if (testState === 'completed' && mockResult) {
     return (
-      <div className="space-y-8 max-w-4xl mx-auto animate-in fade-in duration-300">
+      <div className="space-y-6 sm:space-y-8 max-w-4xl mx-auto animate-in fade-in duration-300">
         {/* Score Card Header */}
-        <div className="p-8 rounded-2xl bg-slate-900 border border-slate-800 text-center space-y-4 shadow-2xl">
+        <div className="p-4 sm:p-8 rounded-2xl bg-slate-900 border border-slate-800 text-center space-y-3 sm:space-y-4 shadow-2xl">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-500/10 border border-indigo-500/30 text-indigo-300">
-            <Award className="w-4 h-4" /> Mock Performance Breakdown
+            <Award className="w-4 h-4 shrink-0" /> Mock Performance Breakdown
           </div>
 
           <div className="space-y-1">
-            <div className="text-4xl sm:text-5xl font-extrabold text-white">
-              {mockResult.scoreObtained} <span className="text-xl text-slate-500 font-normal">/ {mockResult.totalMarks}</span>
+            <div className="text-3xl sm:text-5xl font-extrabold text-white">
+              {mockResult.scoreObtained} <span className="text-lg sm:text-xl text-slate-500 font-normal">/ {mockResult.totalMarks}</span>
             </div>
             <div className="text-xs text-slate-400">
               Scaled Qualifying Cutoff: <strong className="text-cyan-300">{mockResult.scaledCutoff}</strong> Marks
@@ -429,38 +448,38 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
 
           <div className="pt-1">
             {mockResult.passedCutoff ? (
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500 text-emerald-300 text-sm font-bold">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+              <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500 text-emerald-300 text-xs sm:text-sm font-bold">
+                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400 shrink-0" />
                 <span>QUALIFIED! Target Cutoff Achieved</span>
               </div>
             ) : (
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/20 border border-rose-500 text-rose-300 text-sm font-bold">
-                <AlertTriangle className="w-5 h-5 text-rose-400" />
-                <span>Below 35+ Target — Review Missed Questions Below</span>
+              <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl bg-rose-500/20 border border-rose-500 text-rose-300 text-xs sm:text-sm font-bold">
+                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-rose-400 shrink-0" />
+                <span>Below 35+ Target — Review Missed Questions</span>
               </div>
             )}
           </div>
 
           {/* Quick Metrics */}
-          <div className="grid grid-cols-3 gap-3 max-w-md mx-auto pt-4 text-xs">
-            <div className="p-3 rounded-lg bg-emerald-950/30 border border-emerald-800/40 text-emerald-300">
-              <span className="block font-bold text-base">{mockResult.correctCount}</span>
-              <span>Correct</span>
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 max-w-md mx-auto pt-3 sm:pt-4 text-xs">
+            <div className="p-2.5 sm:p-3 rounded-lg bg-emerald-950/30 border border-emerald-800/40 text-emerald-300">
+              <span className="block font-bold text-sm sm:text-base">{mockResult.correctCount}</span>
+              <span className="text-[11px] sm:text-xs">Correct</span>
             </div>
-            <div className="p-3 rounded-lg bg-rose-950/30 border border-rose-800/40 text-rose-300">
-              <span className="block font-bold text-base">{mockResult.incorrectCount}</span>
-              <span>Wrong (Deductions)</span>
+            <div className="p-2.5 sm:p-3 rounded-lg bg-rose-950/30 border border-rose-800/40 text-rose-300">
+              <span className="block font-bold text-sm sm:text-base">{mockResult.incorrectCount}</span>
+              <span className="text-[11px] sm:text-xs">Wrong</span>
             </div>
-            <div className="p-3 rounded-lg bg-slate-800/40 border border-slate-700/40 text-slate-400">
-              <span className="block font-bold text-base">{mockResult.unattemptedCount}</span>
-              <span>Skipped</span>
+            <div className="p-2.5 sm:p-3 rounded-lg bg-slate-800/40 border border-slate-700/40 text-slate-400">
+              <span className="block font-bold text-sm sm:text-base">{mockResult.unattemptedCount}</span>
+              <span className="text-[11px] sm:text-xs">Skipped</span>
             </div>
           </div>
 
           <div className="pt-2">
             <button
               onClick={() => setTestState('idle')}
-              className="px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold transition-colors"
+              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700 text-white text-xs font-semibold transition-colors min-h-[44px]"
             >
               Take Another Mock Test
             </button>
@@ -468,7 +487,7 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
         </div>
 
         {/* Subject-Wise Accuracy */}
-        <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
+        <div className="p-4 sm:p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-3 sm:space-y-4">
           <h3 className="text-sm font-bold text-slate-200">Subject-Wise Performance</h3>
           <div className="space-y-3">
             {Object.entries(mockResult.subjectBreakdown || {}).map(([subject, stats]: any) => (
@@ -491,13 +510,13 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
         </div>
 
         {/* Question-By-Question Detailed Explanations */}
-        <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-5">
+        <div className="p-4 sm:p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4 sm:space-y-5">
           <h3 className="text-sm font-bold text-slate-200">Question-by-Question Review &amp; Rationale</h3>
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {mockResult.recordedAnswers.map((ra: any, idx: number) => (
               <div
                 key={ra.questionId}
-                className="p-4 rounded-xl bg-slate-800/40 border border-slate-800 space-y-2 text-xs"
+                className="p-3.5 sm:p-4 rounded-xl bg-slate-800/40 border border-slate-800 space-y-2 text-xs"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">

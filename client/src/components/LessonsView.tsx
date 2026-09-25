@@ -24,6 +24,7 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
   const [topics, setTopics] = useState<Topic[]>([]);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [loading, setLoading] = useState(false);
+  const [mobileViewMode, setMobileViewMode] = useState<'topics' | 'lesson'>('topics');
 
   // Quick check answers state: { [qc_id]: selectedOptionIndex }
   const [quickCheckAnswers, setQuickCheckAnswers] = useState<Record<string, number>>({});
@@ -65,7 +66,7 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
         }
 
         if (targetTopic && targetTopic.lesson_id) {
-          loadLesson(targetTopic.lesson_id);
+          loadLesson(targetTopic.lesson_id, false);
         } else {
           setSelectedLesson(null);
         }
@@ -73,10 +74,13 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
       .catch(() => setLoading(false));
   }, [selectedSubjectId, initialTopicId]);
 
-  const loadLesson = async (lessonId: string) => {
+  const loadLesson = async (lessonId: string, switchMobileToLesson: boolean = true) => {
     setLoading(true);
     setCheckFeedback(null);
     setQuickCheckAnswers({});
+    if (switchMobileToLesson) {
+      setMobileViewMode('lesson');
+    }
     try {
       const res = await fetch(`/api/lessons/${lessonId}`);
       const data = await res.json();
@@ -126,25 +130,26 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
     if (sub) {
       setSelectedSubjectId(sub.id);
     }
+    setMobileViewMode('topics');
   };
 
   const filteredSubjects = subjects.filter(s => s.tier === activeTier);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Tier Filter Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-2 border-b border-slate-800">
         <div>
-          <h2 className="text-xl font-bold text-white tracking-tight">Interactive Syllabus &amp; Concept Lessons</h2>
+          <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">Interactive Syllabus &amp; Lessons</h2>
           <p className="text-xs text-slate-400">
             Bite-sized high-yield explanations with required retrieval quick checks before completion.
           </p>
         </div>
 
-        <div className="flex p-1 bg-slate-900 border border-slate-800 rounded-xl space-x-1 shrink-0">
+        <div className="flex p-1 bg-slate-900 border border-slate-800 rounded-xl space-x-1 shrink-0 overflow-x-auto no-scrollbar">
           <button
             onClick={() => handleTierSwitch(1)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all touch-manipulation ${
               activeTier === 1
                 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                 : 'text-slate-400 hover:text-slate-200'
@@ -154,54 +159,87 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
           </button>
           <button
             onClick={() => handleTierSwitch(2)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all touch-manipulation ${
               activeTier === 2
                 ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            Tier 2 (Fundamentals)
+            Tier 2 (Core)
           </button>
           <button
             onClick={() => handleTierSwitch(3)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all touch-manipulation ${
               activeTier === 3
                 ? 'bg-slate-700/40 text-slate-300 border border-slate-600/40'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            Tier 3 (Light Touch)
+            Tier 3 (Light)
           </button>
         </div>
       </div>
 
-      {/* Subject Selector Buttons */}
-      <div className="flex flex-wrap gap-2">
-        {filteredSubjects.map(sub => {
-          const isSelected = sub.id === selectedSubjectId;
-          return (
-            <button
-              key={sub.id}
-              onClick={() => setSelectedSubjectId(sub.id)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 border ${
-                isSelected
-                  ? 'bg-indigo-600/25 border-indigo-500/50 text-indigo-300 shadow-sm'
-                  : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
-              }`}
-            >
-              <span>{sub.name}</span>
-              {sub.completed_lessons && sub.completed_lessons > 0 ? (
-                <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              ) : null}
-            </button>
-          );
-        })}
+      {/* Subject Selector Buttons (Horizontal Scroll on Mobile) */}
+      <div className="overflow-x-auto no-scrollbar py-1 -my-1">
+        <div className="flex gap-2 min-w-max sm:flex-wrap">
+          {filteredSubjects.map(sub => {
+            const isSelected = sub.id === selectedSubjectId;
+            return (
+              <button
+                key={sub.id}
+                onClick={() => {
+                  setSelectedSubjectId(sub.id);
+                  setMobileViewMode('topics');
+                }}
+                className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 border touch-manipulation whitespace-nowrap ${
+                  isSelected
+                    ? 'bg-indigo-600/25 border-indigo-500/50 text-indigo-300 shadow-sm'
+                    : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                }`}
+              >
+                <span>{sub.name}</span>
+                {sub.completed_lessons && sub.completed_lessons > 0 ? (
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Mobile-Only Master-Detail Switcher Bar */}
+      <div className="lg:hidden flex rounded-xl bg-slate-900/90 border border-slate-800 p-1 text-xs font-medium">
+        <button
+          onClick={() => setMobileViewMode('topics')}
+          className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+            mobileViewMode === 'topics'
+              ? 'bg-cyan-500/20 text-cyan-300 font-semibold shadow-sm'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <span>Topics List ({topics.length})</span>
+        </button>
+        <button
+          onClick={() => setMobileViewMode('lesson')}
+          disabled={!selectedLesson}
+          className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 ${
+            mobileViewMode === 'lesson'
+              ? 'bg-cyan-500/20 text-cyan-300 font-semibold shadow-sm'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <span>Lesson Content</span>
+          {selectedLesson?.status === 'completed' && (
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+          )}
+        </button>
       </div>
 
       {/* Main Content Area: Sidebar Topics + Reader */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Topic List (4 columns) */}
-        <div className="lg:col-span-4 space-y-3">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-start">
+        {/* Topic List (4 columns on desktop, conditional on mobile) */}
+        <div className={`space-y-3 lg:col-span-4 ${mobileViewMode === 'topics' ? 'block' : 'hidden lg:block'}`}>
           <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs uppercase tracking-wider font-semibold text-slate-400">
@@ -225,10 +263,10 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
                       key={t.id}
                       onClick={() => {
                         if (t.lesson_id) {
-                          loadLesson(t.lesson_id);
+                          loadLesson(t.lesson_id, true);
                         }
                       }}
-                      className={`p-3 rounded-lg border text-left cursor-pointer transition-all ${
+                      className={`p-3 rounded-lg border text-left cursor-pointer transition-all touch-manipulation active:scale-[0.99] ${
                         isCurrent
                           ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-200 ring-1 ring-cyan-500/30'
                           : 'bg-slate-800/40 border-slate-800/80 hover:bg-slate-800 hover:border-slate-700 text-slate-300'
@@ -267,12 +305,26 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
           </div>
         </div>
 
-        {/* Lesson Reader (8 columns) */}
-        <div className="lg:col-span-8">
+        {/* Lesson Reader (8 columns on desktop, conditional on mobile) */}
+        <div className={`lg:col-span-8 ${mobileViewMode === 'lesson' ? 'block' : 'hidden lg:block'}`}>
           {selectedLesson ? (
-            <div className="space-y-6">
+            <div className="space-y-5 sm:space-y-6">
+              {/* Mobile Back to Topics Button */}
+              <div className="lg:hidden flex items-center justify-between pb-1">
+                <button
+                  onClick={() => setMobileViewMode('topics')}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-400 hover:text-cyan-300 p-1"
+                >
+                  <ChevronRight className="w-4 h-4 rotate-180" />
+                  <span>Back to Topics List</span>
+                </button>
+                <span className="text-[11px] text-slate-400 truncate max-w-[200px]">
+                  {selectedLesson.subject_name}
+                </span>
+              </div>
+
               {/* Lesson Header */}
-              <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl space-y-4">
+              <div className="p-4 sm:p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl space-y-3 sm:space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-500/15 border border-indigo-500/30 text-indigo-300">
@@ -312,50 +364,50 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
 
               {/* Retrieval Practice: Quick Check Questions */}
               {selectedLesson.quick_check_questions && selectedLesson.quick_check_questions.length > 0 && (
-                <div className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-5">
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div className="p-4 sm:p-6 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4 sm:space-y-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800">
                     <div>
-                      <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-                        <HelpCircle className="w-4 h-4 text-cyan-400" />
-                        Required Retrieval Quick-Checks ({selectedLesson.quick_check_questions.length} Questions)
+                      <h3 className="text-sm sm:text-base font-bold text-slate-100 flex items-center gap-2">
+                        <HelpCircle className="w-4 h-4 text-cyan-400 shrink-0" />
+                        <span>Required Retrieval Quick-Checks ({selectedLesson.quick_check_questions.length} Questions)</span>
                       </h3>
                       <p className="text-xs text-slate-400">
                         Answer all questions correctly to verify active recall and mark this lesson as completed.
                       </p>
                     </div>
                     {checkFeedback?.allCorrect && (
-                      <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/30">
+                      <span className="self-start sm:self-auto text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/30">
                         {selectedLesson.quick_check_questions.length}/{selectedLesson.quick_check_questions.length} Passed
                       </span>
                     )}
                   </div>
 
                   {checkFeedback && !checkFeedback.allCorrect && (
-                    <div className="p-3.5 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between">
+                    <div className="p-3 sm:p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between gap-2">
                       <span>
                         You got {checkFeedback.passedCount} of {checkFeedback.totalCount} correct. Review explanations below and retry.
                       </span>
                       <button
                         onClick={() => setCheckFeedback(null)}
-                        className="underline font-semibold hover:text-white"
+                        className="underline font-semibold hover:text-white shrink-0 p-1"
                       >
                         Retry
                       </button>
                     </div>
                   )}
 
-                  <div className="space-y-6">
+                  <div className="space-y-4 sm:space-y-6">
                     {selectedLesson.quick_check_questions.map((qc, qIdx) => {
                       const selectedIdx = quickCheckAnswers[qc.id];
                       const feedbackItem = checkFeedback?.feedback?.find((f: any) => f.id === qc.id);
 
                       return (
-                        <div key={qc.id} className="p-4 rounded-xl bg-slate-800/40 border border-slate-800 space-y-3">
+                        <div key={qc.id} className="p-3.5 sm:p-4 rounded-xl bg-slate-800/40 border border-slate-800 space-y-3">
                           <div className="font-medium text-xs sm:text-sm text-slate-100 flex items-start gap-2">
                             <span className="w-5 h-5 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs shrink-0 font-bold text-cyan-400">
                               {qIdx + 1}
                             </span>
-                            <span className="flex-1">{qc.question}</span>
+                            <span className="flex-1 leading-snug">{qc.question}</span>
                           </div>
 
                           {/* Options */}
@@ -379,12 +431,12 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
                                   key={oIdx}
                                   onClick={() => handleSelectQuickCheck(qc.id, oIdx)}
                                   disabled={Boolean(checkFeedback?.allCorrect)}
-                                  className={`p-2.5 rounded-lg border text-left text-xs transition-all flex items-start gap-2 ${btnStyle}`}
+                                  className={`p-3 rounded-xl border text-left text-xs sm:text-sm transition-all flex items-start gap-2 min-h-[44px] touch-manipulation active:scale-[0.99] ${btnStyle}`}
                                 >
-                                  <span className="font-bold opacity-70">
+                                  <span className="font-bold opacity-70 shrink-0">
                                     {String.fromCharCode(65 + oIdx)}.
                                   </span>
-                                  <span>{opt}</span>
+                                  <span className="flex-1 leading-snug">{opt}</span>
                                 </button>
                               );
                             })}
@@ -402,13 +454,13 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
                               <div className="font-semibold mb-1 flex items-center gap-1.5">
                                 {feedbackItem.isCorrect ? (
                                   <>
-                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                                    Correct Answer: Option {String.fromCharCode(65 + feedbackItem.correctIndex)}
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                    <span>Correct Answer: Option {String.fromCharCode(65 + feedbackItem.correctIndex)}</span>
                                   </>
                                 ) : (
                                   <>
-                                    <XCircle className="w-3.5 h-3.5 text-rose-400" />
-                                    Incorrect. Correct Answer: Option {String.fromCharCode(65 + feedbackItem.correctIndex)}
+                                    <XCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                                    <span>Incorrect. Correct Answer: Option {String.fromCharCode(65 + feedbackItem.correctIndex)}</span>
                                   </>
                                 )}
                               </div>
@@ -421,8 +473,8 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
                   </div>
 
                   {/* Submit Action */}
-                  <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
-                    <div className="text-xs text-slate-400">
+                  <div className="pt-3 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div className="text-xs text-slate-400 order-2 sm:order-1 text-center sm:text-left">
                       {Object.keys(quickCheckAnswers).length} of {selectedLesson.quick_check_questions.length} answered
                     </div>
                     <button
@@ -432,7 +484,7 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
                         Object.keys(quickCheckAnswers).length < selectedLesson.quick_check_questions.length ||
                         Boolean(checkFeedback?.allCorrect)
                       }
-                      className="px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:pointer-events-none text-white text-xs font-semibold shadow-lg shadow-cyan-900/40 transition-all flex items-center gap-2"
+                      className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:pointer-events-none text-white text-xs font-semibold shadow-lg shadow-cyan-900/40 transition-all flex items-center justify-center gap-2 min-h-[44px] order-1 sm:order-2"
                     >
                       {submittingCheck ? 'Evaluating...' : checkFeedback?.allCorrect ? 'Completed ✓' : 'Submit Quick Checks & Complete'}
                     </button>

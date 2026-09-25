@@ -110,16 +110,16 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header & Filter Controls */}
-      <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4 shadow-xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="p-4 sm:p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-3 sm:space-y-4 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold text-white tracking-tight">Practice &amp; PYQ Question Bank</h2>
+              <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">Practice &amp; PYQ Question Bank</h2>
               {drillWeakOnly && (
-                <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  Weak-Area Drill Mode
+                <span className="px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  Weak-Area Drill
                 </span>
               )}
             </div>
@@ -131,7 +131,7 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
           {/* Interleaving Switch */}
           <button
             onClick={() => setInterleaving(!interleaving)}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+            className={`flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all touch-manipulation min-h-[40px] shrink-0 ${
               interleaving
                 ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300 shadow-sm'
                 : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
@@ -142,13 +142,13 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
           </button>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800/80 text-xs">
+        {/* Filters Grid */}
+        <div className="grid grid-cols-1 xs:grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 pt-2 border-t border-slate-800/80 text-xs">
           {/* Subject Filter */}
           <select
             value={selectedSubject}
             onChange={e => setSelectedSubject(e.target.value)}
-            className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-cyan-500"
+            className="w-full sm:w-auto bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 min-h-[38px]"
           >
             <option value="">All Subjects</option>
             {subjects.map(s => (
@@ -162,7 +162,7 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
           <select
             value={selectedTier}
             onChange={e => setSelectedTier(e.target.value)}
-            className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-cyan-500"
+            className="w-full sm:w-auto bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 min-h-[38px]"
           >
             <option value="">All Tiers</option>
             <option value="1">Tier 1 (Full Depth)</option>
@@ -174,7 +174,7 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
           <select
             value={selectedType}
             onChange={e => setSelectedType(e.target.value)}
-            className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-cyan-500"
+            className="w-full sm:w-auto bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 min-h-[38px]"
           >
             <option value="">All Types (MCQ, MSQ, NAT)</option>
             <option value="MCQ">MCQ (Multiple Choice)</option>
@@ -185,9 +185,9 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
           {/* PYQ Only Toggle */}
           <button
             onClick={() => setPyqOnly(!pyqOnly)}
-            className={`px-3 py-1.5 rounded-lg border font-medium transition-all ${
+            className={`w-full sm:w-auto px-3.5 py-2 rounded-lg border font-medium transition-all min-h-[38px] flex items-center justify-center ${
               pyqOnly
-                ? 'bg-indigo-600/30 border-indigo-500 text-indigo-200'
+                ? 'bg-indigo-600/30 border-indigo-500 text-indigo-200 font-semibold'
                 : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -200,7 +200,7 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
       {loading ? (
         <div className="py-16 text-center text-xs text-slate-400">Loading questions...</div>
       ) : questions.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl bg-slate-900 border border-slate-800 text-slate-400 space-y-2">
+        <div className="p-8 sm:p-12 text-center rounded-2xl bg-slate-900 border border-slate-800 text-slate-400 space-y-2">
           <HelpCircle className="w-8 h-8 text-slate-600 mx-auto" />
           <p className="text-sm">No questions match the current filters.</p>
           <button
@@ -210,13 +210,13 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
               setSelectedType('');
               setPyqOnly(false);
             }}
-            className="text-xs text-cyan-400 underline"
+            className="text-xs text-cyan-400 underline p-1"
           >
             Reset all filters
           </button>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {questions.map((q, idx) => {
             const userAnswer = userAnswers[q.id];
             const result = attemptResults[q.id];
@@ -225,11 +225,11 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
             return (
               <div
                 key={q.id}
-                className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-4 shadow-lg hover:border-slate-700/80 transition-all"
+                className="p-4 sm:p-6 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-3 sm:space-y-4 shadow-lg hover:border-slate-700/80 transition-all"
               >
                 {/* Meta header */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-800/80">
-                  <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 sm:pb-3 border-b border-slate-800/80">
+                  <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                     <span className="w-6 h-6 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-cyan-400">
                       Q{idx + 1}
                     </span>
@@ -248,7 +248,7 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
                     )}
                   </div>
 
-                  <span className="text-xs text-slate-400">
+                  <span className="text-[11px] sm:text-xs text-slate-400">
                     {q.subject_name} • <span className="text-slate-300">{q.topic_name}</span>
                   </span>
                 </div>
@@ -263,20 +263,21 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
                   /* Numerical Answer Type Input */
                   <div className="space-y-2 pt-2">
                     <span className="text-xs text-slate-400 block">Enter numerical value:</span>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2.5">
                       <input
                         type="text"
+                        inputMode="decimal"
                         disabled={isSubmitted}
                         value={userAnswer || ''}
                         onChange={e => handleNatInput(q.id, e.target.value)}
                         placeholder="e.g. 98 or 2.5"
-                        className="w-48 px-3.5 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white font-mono text-sm focus:outline-none focus:border-cyan-400 disabled:opacity-70"
+                        className="w-full xs:w-48 px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-white font-mono text-sm focus:outline-none focus:border-cyan-400 disabled:opacity-70 min-h-[44px]"
                       />
                       {!isSubmitted && (
                         <button
                           onClick={() => handleSubmitAttempt(q)}
                           disabled={!userAnswer}
-                          className="px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-xs font-semibold transition-colors"
+                          className="px-5 py-2.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700 disabled:opacity-50 text-white text-xs font-semibold transition-colors min-h-[44px]"
                         >
                           Submit Answer
                         </button>
@@ -321,10 +322,10 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
                             key={oIdx}
                             onClick={() => handleSelectOption(q, char)}
                             disabled={isSubmitted}
-                            className={`p-3 rounded-xl border text-left text-xs sm:text-sm transition-all flex items-start gap-2.5 ${btnClass}`}
+                            className={`p-3 rounded-xl border text-left text-xs sm:text-sm transition-all flex items-start gap-2.5 min-h-[46px] touch-manipulation active:scale-[0.99] ${btnClass}`}
                           >
                             <span className="font-bold opacity-75 shrink-0">{char}.</span>
-                            <span className="flex-1">{opt}</span>
+                            <span className="flex-1 leading-snug">{opt}</span>
                           </button>
                         );
                       })}
@@ -335,7 +336,7 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
                         <button
                           onClick={() => handleSubmitAttempt(q)}
                           disabled={!userAnswer || (Array.isArray(userAnswer) && userAnswer.length === 0)}
-                          className="px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-xs font-semibold transition-colors"
+                          className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700 disabled:opacity-50 text-white text-xs font-semibold transition-colors min-h-[44px]"
                         >
                           Check Answer
                         </button>

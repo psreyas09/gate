@@ -55,6 +55,12 @@ Every lesson explicitly cites standard reference textbooks:
 5. **Study Calendar:** Light Mode (busy periods: reviews only) vs. Full Mode (new lessons + practice + reviews).
 6. **Resources Hub:** Curated external resources (NPTEL portal, Physics Wallah notes, GFG LMNs, Ankit Doyla playlists, Google Drive notes, Telegram groups).
 7. **Automated Test Suite:** 49/49 automated unit and API checks passing ([`test_suite.js`](file:///home/sreyas/projects/gate_study/test_suite.js)).
+8. **Full Mobile Optimization:** Comprehensive mobile-first UX across all views down to 320px width:
+   - **Thumb-Friendly Bottom Navigation:** Native app-style fixed bottom bar on phones for 1-handed switching across Home, Lessons, Reviews, Practice, and a More drawer.
+   - **Master-Detail Lesson Mode:** Dedicated mobile toggle between Topics List and Lesson Reader with one-tap "Back to Topics" navigation.
+   - **Interactive Question Palette in Mocks:** Collapsible question palette toggle in active exam mode preventing long vertical scrolling.
+   - **Touch Ergonomics & Keypads:** Minimum 44px tap targets, active tap animations, `inputMode="decimal"` for instant numeric keypad on NAT questions, and responsive 2x2 grid for SM-2 rating buttons on mobile.
+   - **Safe Areas & Scrollers:** Full support for `viewport-fit=cover`, safe-area insets, and smooth horizontal scrolling pill carousels.
 
 ---
 

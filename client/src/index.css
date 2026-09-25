@@ -6,23 +6,45 @@
 
 body {
   font-family: var(--font-sans);
-  background-color: #0f172a;
+  background-color: #020617;
   color: #f8fafc;
   min-height: 100vh;
+  min-height: 100dvh;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  overscroll-behavior-y: none;
+}
+
+/* Mobile-friendly safe-area padding helpers */
+.safe-bottom {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+}
+
+.safe-top {
+  padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
 }
 
 /* Custom scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: #020617;
 }
 ::-webkit-scrollbar-thumb {
   background: #334155;
-  border-radius: 3px;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #475569;
+}
+
+/* Hide scrollbar utilities for smooth horizontal pill carousels */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

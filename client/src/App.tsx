@@ -51,7 +51,7 @@ export function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-24 sm:pb-8">
         {currentTab === 'dashboard' && overview && (
           <DashboardView
             overview={overview}
@@ -86,16 +86,16 @@ export function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800/80 bg-slate-900/40 py-6 text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <footer className="border-t border-slate-800/80 bg-slate-900/40 py-5 pb-20 sm:pb-6 text-xs text-slate-500">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
           <div className="flex items-center gap-2 text-slate-400">
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>
-              All progress is continuously saved to local disk: <code className="text-cyan-300 font-mono text-[11px] bg-slate-800/80 px-1.5 py-0.5 rounded">data/gate_study.db</code>
+              All progress saved to disk: <code className="text-cyan-300 font-mono text-[11px] bg-slate-800/80 px-1.5 py-0.5 rounded break-all">data/gate_study.db</code>
             </span>
           </div>
-          <div className="flex items-center gap-4 text-[11px]">
-            <span>GATE CSE 2027 Strategy Platform</span>
+          <div className="flex items-center gap-3 text-[11px]">
+            <span>GATE CSE 2027 Platform</span>
             <span>•</span>
             <button
               onClick={() => setIsBackupOpen(true)}
