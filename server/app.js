@@ -151,6 +151,24 @@ app.use(async (req, res, next) => {
 
 app.use(authMiddleware);
 
+// Status / Health check
+app.get('/api', (req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'GATE CSE 2027 API is live and operational',
+    tursoConnected: Boolean(process.env.TURSO_DATABASE_URL),
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    tursoConnected: Boolean(process.env.TURSO_DATABASE_URL),
+    timestamp: new Date().toISOString()
+  });
+});
+
 // ================= AUTH ENDPOINTS =================
 
 // Register new user (Guest-first option)
