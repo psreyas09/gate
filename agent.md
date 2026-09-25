@@ -61,6 +61,10 @@ Every lesson explicitly cites standard reference textbooks:
    - **Interactive Question Palette in Mocks:** Collapsible question palette toggle in active exam mode preventing long vertical scrolling.
    - **Touch Ergonomics & Keypads:** Minimum 44px tap targets, active tap animations, `inputMode="decimal"` for instant numeric keypad on NAT questions, and responsive 2x2 grid for SM-2 rating buttons on mobile.
    - **Safe Areas & Scrollers:** Full support for `viewport-fit=cover`, safe-area insets, and smooth horizontal scrolling pill carousels.
+9. **Resilient Spaced Repetition Flashcards:**
+   - Fixed empty card bug where auto-generated lesson cards and missed-question reviews lacked proper field mapping.
+   - Added universal fallback extraction across `flashcard_front`, `front`, and `question_text` for the prompt, and `flashcard_back`, `back`, and `question_explanation` for the solution.
+   - Enriched both SQLite backend (`server/index.js`) and in-browser fallback engine (`localApi.ts`) to fully populate all item types (`flashcard`, `lesson`, and `question`).
 
 ---
 

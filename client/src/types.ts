@@ -93,6 +93,9 @@ export interface SpacedRepetitionCard {
   flashcard_front?: string;
   flashcard_back?: string;
   flashcard_citation?: string;
+  front?: string;
+  back?: string;
+  citation?: string;
   question_text?: string;
   question_options?: string[];
   question_type?: 'MCQ' | 'MSQ' | 'NAT';

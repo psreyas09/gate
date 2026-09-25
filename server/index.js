@@ -324,14 +324,16 @@ app.get('/api/reviews/due', (req, res) => {
     const dueCards = db.prepare(`
       SELECT sr.*, 
              CASE 
-               WHEN sr.item_type = 'flashcard' THEN fc.front
-               WHEN sr.item_type = 'lesson' THEN 'Review High-Yield Concept: ' || l.title
-               ELSE NULL 
+               WHEN sr.item_type = 'flashcard' THEN COALESCE(fc.front, 'Concept Review')
+               WHEN sr.item_type = 'lesson' THEN 'Review High-Yield Concept: ' || COALESCE(l.title, 'Lesson Review')
+               WHEN sr.item_type = 'question' THEN COALESCE(q.question_text, 'Practice Question')
+               ELSE 'Review Item' 
              END as flashcard_front,
              CASE 
-               WHEN sr.item_type = 'flashcard' THEN fc.back
-               WHEN sr.item_type = 'lesson' THEN l.content_markdown
-               ELSE NULL 
+               WHEN sr.item_type = 'flashcard' THEN COALESCE(fc.back, 'No explanation available')
+               WHEN sr.item_type = 'lesson' THEN COALESCE(l.content_markdown, 'Lesson content summary')
+               WHEN sr.item_type = 'question' THEN COALESCE(q.explanation, 'Correct answer: ' || COALESCE(q.correct_answer, ''))
+               ELSE 'No explanation available' 
              END as flashcard_back,
              CASE 
                WHEN sr.item_type = 'flashcard' THEN fc.citation

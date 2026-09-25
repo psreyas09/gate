@@ -371,6 +371,26 @@ export async function handleLocalApi(urlString: string, options?: RequestInit): 
     }
     setStore(KEYS.LESSON_PROGRESS, lessonProgress);
 
+    // Create an automatic spaced repetition review card for this lesson
+    const spacedCards = getStore<any[]>(KEYS.SPACED_CARDS, []);
+    const srId = `sr_lesson_${lessonId}`;
+    if (!spacedCards.some(c => c.id === srId)) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      spacedCards.push({
+        id: srId,
+        item_type: 'lesson',
+        item_id: lessonId,
+        repetition: 0,
+        interval_days: 1,
+        ease_factor: 2.5,
+        due_date: tomorrow.toISOString(),
+        last_reviewed_at: now,
+        last_rating: 3,
+      });
+      setStore(KEYS.SPACED_CARDS, spacedCards);
+    }
+
     return jsonResponse({ success: true, message: 'Lesson completed successfully' });
   }
 
@@ -379,26 +399,75 @@ export async function handleLocalApi(urlString: string, options?: RequestInit): 
     const spacedCards = getStore<any[]>(KEYS.SPACED_CARDS, []);
     const nowIso = new Date().toISOString();
 
-    let dueCards = spacedCards.filter(c => c.due_date <= nowIso);
+    let dueCards = spacedCards.filter(c => c.due_date <= nowIso || c.repetition === 0);
     if (dueCards.length === 0 && spacedCards.length > 0) {
       // If nothing due, show next 5 cards for review
       dueCards = [...spacedCards].sort((a, b) => a.due_date.localeCompare(b.due_date)).slice(0, 5);
     }
 
     const enriched = dueCards.map(c => {
-      const fc = curriculum.flashcards.find(f => f.id === c.item_id);
-      const topic = fc ? curriculum.topics.find(t => t.id === fc.topic_id) : null;
-      const subject = fc ? curriculum.subjects.find(s => s.id === fc.subject_id) : null;
-      return {
-        ...c,
-        front: fc?.front || 'Concept review',
-        back: fc?.back || 'Lesson explanation',
-        citation: fc?.citation || '',
-        subject_id: fc?.subject_id,
-        subject_name: subject?.name || 'General',
-        tier: subject?.tier || 1,
-        topic_name: topic?.name || '',
-      };
+      if (c.item_type === 'lesson') {
+        const lesson = curriculum.lessons.find(l => l.id === c.item_id);
+        const topic = lesson ? curriculum.topics.find(t => t.id === lesson.topic_id) : null;
+        const subject = topic ? curriculum.subjects.find(s => s.id === topic.subject_id) : null;
+        return {
+          ...c,
+          flashcard_front: lesson ? `Review High-Yield Concept: ${lesson.title}` : 'Concept Review',
+          flashcard_back: lesson ? lesson.content_markdown : 'Lesson explanation',
+          flashcard_citation: lesson?.citation || '',
+          front: lesson ? `Review High-Yield Concept: ${lesson.title}` : 'Concept Review',
+          back: lesson ? lesson.content_markdown : 'Lesson explanation',
+          citation: lesson?.citation || '',
+          subject_id: topic?.subject_id,
+          subject_name: subject?.name || 'General',
+          subject_tier: subject?.tier || 1,
+          topic_name: topic?.name || '',
+          is_high_yield: topic?.is_high_yield || 0,
+        };
+      } else if (c.item_type === 'question') {
+        const q = curriculum.questions.find(item => item.id === c.item_id);
+        const topic = q ? curriculum.topics.find(t => t.id === q.topic_id) : null;
+        const subject = q ? curriculum.subjects.find(s => s.id === q.subject_id) : null;
+        let options = q?.options;
+        if (typeof options === 'string') {
+          try { options = JSON.parse(options); } catch {}
+        }
+        return {
+          ...c,
+          flashcard_front: q?.question_text || 'Practice Question',
+          flashcard_back: q?.explanation || (q?.correct_answer ? `Correct answer: ${q.correct_answer}` : 'Solution explanation'),
+          front: q?.question_text || 'Practice Question',
+          back: q?.explanation || (q?.correct_answer ? `Correct answer: ${q.correct_answer}` : 'Solution explanation'),
+          question_text: q?.question_text,
+          question_options: options,
+          question_type: q?.type,
+          correct_answer: q?.correct_answer,
+          question_explanation: q?.explanation,
+          subject_id: q?.subject_id,
+          subject_name: subject?.name || 'General',
+          subject_tier: subject?.tier || 1,
+          topic_name: topic?.name || '',
+          is_high_yield: topic?.is_high_yield || 0,
+        };
+      } else {
+        const fc = curriculum.flashcards.find(f => f.id === c.item_id);
+        const topic = fc ? curriculum.topics.find(t => t.id === fc.topic_id) : null;
+        const subject = fc ? curriculum.subjects.find(s => s.id === fc.subject_id) : null;
+        return {
+          ...c,
+          flashcard_front: fc?.front || 'Concept review',
+          flashcard_back: fc?.back || 'Lesson explanation',
+          flashcard_citation: fc?.citation || '',
+          front: fc?.front || 'Concept review',
+          back: fc?.back || 'Lesson explanation',
+          citation: fc?.citation || '',
+          subject_id: fc?.subject_id,
+          subject_name: subject?.name || 'General',
+          subject_tier: subject?.tier || 1,
+          topic_name: topic?.name || '',
+          is_high_yield: topic?.is_high_yield || 0,
+        };
+      }
     });
 
     return jsonResponse(enriched);
@@ -527,6 +596,31 @@ export async function handleLocalApi(urlString: string, options?: RequestInit): 
       attempted_at: new Date().toISOString(),
     });
     setStore(KEYS.QUESTION_ATTEMPTS, attempts);
+
+    if (!isCorrect) {
+      const spacedCards = getStore<any[]>(KEYS.SPACED_CARDS, []);
+      const srId = `sr_q_${questionId}`;
+      const existingSrIdx = spacedCards.findIndex(c => c.id === srId);
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      if (existingSrIdx >= 0) {
+        spacedCards[existingSrIdx].due_date = tomorrow.toISOString();
+        spacedCards[existingSrIdx].repetition = 0;
+      } else {
+        spacedCards.push({
+          id: srId,
+          item_type: 'question',
+          item_id: questionId,
+          repetition: 0,
+          interval_days: 1,
+          ease_factor: 2.5,
+          due_date: tomorrow.toISOString(),
+          last_reviewed_at: new Date().toISOString(),
+          last_rating: 1,
+        });
+      }
+      setStore(KEYS.SPACED_CARDS, spacedCards);
+    }
 
     return jsonResponse({
       isCorrect,

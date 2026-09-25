@@ -132,7 +132,7 @@ export const SpacedRepetitionView: React.FC<SpacedRepetitionViewProps> = ({ onRe
             <div className="flex items-center justify-between gap-2 pb-3 sm:pb-4 border-b border-slate-800/80">
               <div className="flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-800 text-slate-300 border border-slate-700">
-                  {currentCard.item_type}
+                  {currentCard.item_type === 'lesson' ? 'Lesson Review' : currentCard.item_type === 'question' ? 'Practice Missed' : 'Flashcard'}
                 </span>
                 {currentCard.subject_name && (
                   <span className="text-xs text-cyan-300 font-semibold truncate max-w-[180px] sm:max-w-none">{currentCard.subject_name}</span>
@@ -148,14 +148,16 @@ export const SpacedRepetitionView: React.FC<SpacedRepetitionViewProps> = ({ onRe
             {/* Front Prompt */}
             <div className="py-4 sm:py-6">
               <span className="text-[10px] sm:text-[11px] uppercase tracking-wider font-semibold text-slate-400 block mb-2">
-                Prompt / Concept
+                {currentCard.item_type === 'question' ? 'Practice Question' : currentCard.item_type === 'lesson' ? 'High-Yield Concept' : 'Prompt / Concept'}
               </span>
               <div className="text-base sm:text-lg font-medium text-slate-100 leading-relaxed">
-                {currentCard.item_type === 'flashcard' ? (
-                  <MathText text={currentCard.flashcard_front || ''} />
-                ) : (
-                  <MathText text={currentCard.question_text || ''} />
-                )}
+                <MathText
+                  text={
+                    (currentCard.item_type === 'question'
+                      ? currentCard.question_text || currentCard.flashcard_front || currentCard.front
+                      : currentCard.flashcard_front || currentCard.front || currentCard.question_text) || 'Concept Review'
+                  }
+                />
               </div>
             </div>
 
@@ -163,25 +165,27 @@ export const SpacedRepetitionView: React.FC<SpacedRepetitionViewProps> = ({ onRe
             {isFlipped ? (
               <div className="pt-3 sm:pt-4 border-t border-slate-800 animate-in fade-in space-y-3">
                 <span className="text-[10px] sm:text-[11px] uppercase tracking-wider font-semibold text-emerald-400 block">
-                  Solution / Explanation
+                  {currentCard.item_type === 'question' ? 'Solution & Explanation' : currentCard.item_type === 'lesson' ? 'Detailed Summary & Theory' : 'Solution / Explanation'}
                 </span>
-                <div className="text-xs sm:text-sm text-slate-200 leading-relaxed bg-slate-950/60 p-3.5 sm:p-4 rounded-xl border border-slate-800">
-                  {currentCard.item_type === 'flashcard' ? (
-                    <MathText text={currentCard.flashcard_back || ''} />
-                  ) : (
-                    <div>
-                      <div className="text-xs font-bold text-emerald-400 mb-2">
-                        Correct Answer: {currentCard.correct_answer}
-                      </div>
-                      <MathText text={currentCard.question_explanation || ''} />
+                <div className="text-xs sm:text-sm text-slate-200 leading-relaxed bg-slate-950/60 p-3.5 sm:p-4 rounded-xl border border-slate-800 max-h-[380px] overflow-y-auto">
+                  {currentCard.correct_answer && (
+                    <div className="text-xs font-bold text-emerald-400 mb-2">
+                      Correct Answer: {currentCard.correct_answer}
                     </div>
                   )}
+                  <MathText
+                    text={
+                      (currentCard.item_type === 'question'
+                        ? currentCard.question_explanation || currentCard.flashcard_back || currentCard.back
+                        : currentCard.flashcard_back || currentCard.back || currentCard.question_explanation) || 'No details provided.'
+                    }
+                  />
                 </div>
 
-                {currentCard.flashcard_citation && (
+                {(currentCard.flashcard_citation || currentCard.citation) && (
                   <div className="text-[11px] text-slate-400 flex items-center gap-1.5 pt-1">
                     <BookMarked className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                    <span>Reference: {currentCard.flashcard_citation}</span>
+                    <span>Reference: {currentCard.flashcard_citation || currentCard.citation}</span>
                   </div>
                 )}
               </div>
