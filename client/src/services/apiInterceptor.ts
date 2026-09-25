@@ -24,23 +24,95 @@ export function installApiInterceptor() {
         modifiedInit.headers = headers;
       }
 
-      const isLocalhost =
-        window.location.hostname === 'localhost' ||
-        window.location.hostname === '127.0.0.1';
+      // Try backend fetch first (works on localhost, LAN IP, or proxied servers)
+      try {
+        const res = await originalFetch(input, modifiedInit);
 
-      if (isLocalhost) {
-        try {
-          const res = await originalFetch(input, modifiedInit);
-          // If the Express server answered with valid status (not 404 or server gateway error)
-          if (res.status !== 404 && res.status !== 502 && res.status !== 503) {
-            return res;
+        // If the server returned an error indicating gateway or missing endpoint
+        // (404 = static host without API, 500/502/503/504 = Vite proxy cannot reach backend)
+        const isProxyOrMissing =
+          res.status === 404 ||
+          res.status === 500 ||
+          res.status === 502 ||
+          res.status === 503 ||
+          res.status === 504;
+
+        if (!isProxyOrMissing) {
+          // Cross-Sync: If login returned 401 on backend, check if this user exists in localStorage
+          // (e.g. registered while offline, on mobile LAN, or before a git pull). If so, auto-sync to backend!
+          if (res.status === 401 && urlString.includes('/api/auth/login') && modifiedInit.body) {
+            try {
+              const body = JSON.parse(modifiedInit.body as string);
+              const localUsers = JSON.parse(localStorage.getItem('gate_users') || '[]');
+              const cleanUsername = (body.username || '').trim().toLowerCase();
+              const localUser = localUsers.find(
+                (u: any) => u.username.toLowerCase() === cleanUsername && u.password === body.password
+              );
+              if (localUser) {
+                // Auto-register to backend to sync credentials
+                const regRes = await originalFetch('/api/auth/register', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    username: localUser.username,
+                    password: body.password,
+                    email: localUser.email,
+                    migrateGuestProgress: false,
+                  }),
+                });
+                if (regRes.ok) {
+                  const regData = await regRes.clone().json();
+                  if (regData.token) {
+                    localStorage.setItem('gate_auth_token', regData.token);
+                  }
+                  return regRes;
+                }
+              }
+            } catch {
+              // Ignore and return original res
+            }
           }
-        } catch {
-          // If local Express server is not running, seamlessly fall back to local browser storage
+
+          // Cross-Sync: If register or reset-password succeeded on backend, mirror user credentials
+          // in localStorage so offline and local fallback always has the account!
+          if (
+            (res.status === 200 || res.status === 201) &&
+            (urlString.includes('/api/auth/register') || urlString.includes('/api/auth/reset-password')) &&
+            modifiedInit.body
+          ) {
+            try {
+              const body = JSON.parse(modifiedInit.body as string);
+              const localUsers = JSON.parse(localStorage.getItem('gate_users') || '[]');
+              const cleanUsername = (body.username || '').trim();
+              const password = body.password || body.newPassword;
+              const existingIdx = localUsers.findIndex(
+                (u: any) => u.username.toLowerCase() === cleanUsername.toLowerCase()
+              );
+              if (existingIdx >= 0) {
+                localUsers[existingIdx].password = password;
+                if (body.email) localUsers[existingIdx].email = body.email;
+              } else {
+                localUsers.push({
+                  id: `usr_${Date.now()}`,
+                  username: cleanUsername,
+                  email: body.email || null,
+                  password: password,
+                  created_at: new Date().toISOString(),
+                });
+              }
+              localStorage.setItem('gate_users', JSON.stringify(localUsers));
+            } catch {
+              // Ignore
+            }
+          }
+
+          return res;
         }
+      } catch {
+        // Network failure / offline: fall back to local browser storage
       }
 
-      // Handle in-browser via localApi (Vercel, offline, or standalone)
+      // Handle in-browser via localApi (offline, Vercel, or standalone)
       return handleLocalApi(urlString, modifiedInit);
     }
 

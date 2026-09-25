@@ -166,9 +166,12 @@ export async function handleLocalApi(urlString: string, options?: RequestInit): 
     const { username, password } = body;
     const users = getStore<any[]>(KEYS.USERS, []);
     const cleanUsername = (username || '').trim().toLowerCase();
-    const found = users.find(u => u.username.toLowerCase() === cleanUsername && u.password === password);
+    const found = users.find(u => u.username.toLowerCase() === cleanUsername);
     if (!found) {
-      return jsonResponse({ error: 'Invalid username or password.' }, 401);
+      return jsonResponse({ error: 'Account not found with this username.', notFound: true }, 401);
+    }
+    if (found.password !== password) {
+      return jsonResponse({ error: 'Incorrect password. Check for typos or CapsLock.' }, 401);
     }
 
     const safeUser = { id: found.id, username: found.username, email: found.email, created_at: found.created_at };
@@ -180,6 +183,43 @@ export async function handleLocalApi(urlString: string, options?: RequestInit): 
       token: `token_${safeUser.id}`,
       user: safeUser,
       message: 'Logged in successfully!',
+    });
+  }
+
+  if (pathname === '/api/auth/reset-password' && method === 'POST') {
+    const { username, newPassword, email } = body;
+    if (!username || !newPassword) {
+      return jsonResponse({ error: 'Username and new password are required.' }, 400);
+    }
+    if (newPassword.length < 6) {
+      return jsonResponse({ error: 'New password must be at least 6 characters long.' }, 400);
+    }
+
+    const users = getStore<any[]>(KEYS.USERS, []);
+    const cleanUsername = (username || '').trim().toLowerCase();
+    const foundIndex = users.findIndex(u => u.username.toLowerCase() === cleanUsername);
+    if (foundIndex === -1) {
+      return jsonResponse({ error: 'User not found. You can create this account instead.', notFound: true }, 404);
+    }
+
+    const user = users[foundIndex];
+    if (user.email && email && user.email.toLowerCase() !== email.trim().toLowerCase()) {
+      return jsonResponse({ error: 'Email does not match the registered account email.' }, 403);
+    }
+
+    user.password = newPassword;
+    users[foundIndex] = user;
+    setStore(KEYS.USERS, users);
+
+    const safeUser = { id: user.id, username: user.username, email: user.email, created_at: user.created_at };
+    setStore(KEYS.CURRENT_USER, safeUser);
+    localStorage.setItem('gate_auth_token', `token_${safeUser.id}`);
+
+    return jsonResponse({
+      success: true,
+      token: `token_${safeUser.id}`,
+      user: safeUser,
+      message: 'Password reset successfully!',
     });
   }
 

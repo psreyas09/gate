@@ -322,9 +322,41 @@ async function runTestSuite() {
     const overviewC = await request('GET', '/api/overview', null, { Authorization: `Bearer ${tokenC}` });
     assert('Guest progress successfully migrates into newly registered account', overviewC.data.completedLessons >= 1);
 
+    // Reset password test
+    const resetRes = await request('POST', '/api/auth/reset-password', {
+      username: userAName,
+      newPassword: 'newpassword_999',
+    });
+    assert('Password reset endpoint updates password and returns token', resetRes.status === 200 && Boolean(resetRes.data.token));
+
+    // Verify login with new password succeeds
+    const newLoginRes = await request('POST', '/api/auth/login', {
+      username: userAName,
+      password: 'newpassword_999',
+    });
+    assert('Login with updated password succeeds', newLoginRes.status === 200 && Boolean(newLoginRes.data.token));
+
     // Logout endpoint check
     const logoutRes = await request('POST', '/api/auth/logout', null, { Authorization: `Bearer ${tokenC}` });
     assert('Logout endpoint confirms successful session clear', logoutRes.status === 200 && logoutRes.data.success === true);
+
+    // Clean up ONLY test users created during this test run
+    try {
+      const { db } = require('./server/db');
+      const testNames = [userAName, userBName, userCName];
+      testNames.forEach(name => {
+        const u = db.prepare('SELECT id FROM users WHERE username = ?').get(name);
+        if (u) {
+          db.prepare('DELETE FROM user_lesson_progress WHERE user_id = ?').run(u.id);
+          db.prepare('DELETE FROM spaced_repetition_cards WHERE user_id = ?').run(u.id);
+          db.prepare('DELETE FROM user_question_attempts WHERE user_id = ?').run(u.id);
+          db.prepare('DELETE FROM mock_sessions WHERE user_id = ?').run(u.id);
+          db.prepare('DELETE FROM users WHERE id = ?').run(u.id);
+        }
+      });
+    } catch {
+      // Ignore cleanup error
+    }
 
   } catch (err) {
     console.error('Test Suite encountered an error:', err);

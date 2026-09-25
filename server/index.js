@@ -185,12 +185,12 @@ app.post('/api/auth/login', (req, res) => {
     const cleanUsername = username.trim();
     const user = db.prepare('SELECT * FROM users WHERE LOWER(username) = LOWER(?)').get(cleanUsername);
     if (!user) {
-      return res.status(401).json({ error: 'Invalid username or password.' });
+      return res.status(401).json({ error: 'Account not found with this username.', notFound: true });
     }
 
     const isValid = verifyPassword(password, user.salt, user.password_hash);
     if (!isValid) {
-      return res.status(401).json({ error: 'Invalid username or password.' });
+      return res.status(401).json({ error: 'Incorrect password. Check for typos or CapsLock.' });
     }
 
     const nowIso = new Date().toISOString();
@@ -207,6 +207,45 @@ app.post('/api/auth/login', (req, res) => {
     });
   } catch (err) {
     console.error('Error logging in:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Password Reset / Account Recovery
+app.post('/api/auth/reset-password', (req, res) => {
+  try {
+    const { username, newPassword, email } = req.body;
+    if (!username || !newPassword) {
+      return res.status(400).json({ error: 'Username and new password are required.' });
+    }
+    if (typeof newPassword !== 'string' || newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters long.' });
+    }
+
+    const cleanUsername = username.trim();
+    const user = db.prepare('SELECT * FROM users WHERE LOWER(username) = LOWER(?)').get(cleanUsername);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found. You can create this account instead.', notFound: true });
+    }
+
+    if (user.email && email && user.email.toLowerCase() !== email.trim().toLowerCase()) {
+      return res.status(403).json({ error: 'Email does not match the registered account email.' });
+    }
+
+    const { hash, salt } = hashPassword(newPassword);
+    db.prepare('UPDATE users SET password_hash = ?, salt = ? WHERE id = ?').run(hash, salt, user.id);
+
+    const safeUser = { id: user.id, username: user.username, email: user.email, created_at: user.created_at };
+    const token = createToken(safeUser);
+
+    res.json({
+      success: true,
+      token,
+      user: safeUser,
+      message: 'Password reset successfully!'
+    });
+  } catch (err) {
+    console.error('Error resetting password:', err);
     res.status(500).json({ error: err.message });
   }
 });
