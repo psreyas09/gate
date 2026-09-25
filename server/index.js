@@ -1107,6 +1107,11 @@ app.post('/api/backup/snapshot', (req, res) => {
   }
 });
 
+// Explicit JSON 404 for any unhandled API endpoints so Express never serves HTML for API requests
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: `Not found: ${req.method} ${req.originalUrl || req.path}` });
+});
+
 // Serve static client assets if built
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
 const fs = require('node:fs');
