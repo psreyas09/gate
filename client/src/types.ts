@@ -155,3 +155,18 @@ export interface OverviewData {
     busy_periods?: string;
   };
 }
+
+export interface User {
+  id: string;
+  username: string;
+  email: string | null;
+  created_at: string;
+}
+
+export interface AuthResponse {
+  success: boolean;
+  token?: string;
+  user?: User;
+  error?: string;
+  message?: string;
+}

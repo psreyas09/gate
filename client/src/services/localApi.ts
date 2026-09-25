@@ -8,6 +8,8 @@ const KEYS = {
   MOCK_SESSIONS: 'gate_mock_sessions',
   MOCK_ANSWERS: 'gate_mock_answers',
   SETTINGS: 'gate_study_settings',
+  USERS: 'gate_users',
+  CURRENT_USER: 'gate_current_user',
 };
 
 // Safe JSON LocalStorage Helpers
@@ -120,6 +122,84 @@ export async function handleLocalApi(urlString: string, options?: RequestInit): 
   const { pathname, searchParams } = parseUrl(urlString);
   const method = (options?.method || 'GET').toUpperCase();
   const body = options?.body ? JSON.parse(options.body as string) : {};
+
+  // 0. AUTH ENDPOINTS
+  if (pathname === '/api/auth/register' && method === 'POST') {
+    const { username, password, email } = body;
+    if (!username || username.trim().length < 3) {
+      return jsonResponse({ error: 'Username must be at least 3 characters long.' }, 400);
+    }
+    if (!password || password.length < 6) {
+      return jsonResponse({ error: 'Password must be at least 6 characters long.' }, 400);
+    }
+
+    const cleanUsername = username.trim();
+    const users = getStore<any[]>(KEYS.USERS, []);
+    if (users.some(u => u.username.toLowerCase() === cleanUsername.toLowerCase())) {
+      return jsonResponse({ error: 'Username already taken. Please choose another one.' }, 409);
+    }
+
+    const newUser = {
+      id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      username: cleanUsername,
+      email: email ? email.trim() : null,
+      password,
+      created_at: new Date().toISOString(),
+    };
+
+    users.push(newUser);
+    setStore(KEYS.USERS, users);
+
+    const safeUser = { id: newUser.id, username: newUser.username, email: newUser.email, created_at: newUser.created_at };
+    setStore(KEYS.CURRENT_USER, safeUser);
+    localStorage.setItem('gate_auth_token', `token_${safeUser.id}`);
+
+    return jsonResponse({
+      success: true,
+      token: `token_${safeUser.id}`,
+      user: safeUser,
+      message: 'Account created successfully!',
+    }, 201);
+  }
+
+  if (pathname === '/api/auth/login' && method === 'POST') {
+    const { username, password } = body;
+    const users = getStore<any[]>(KEYS.USERS, []);
+    const cleanUsername = (username || '').trim().toLowerCase();
+    const found = users.find(u => u.username.toLowerCase() === cleanUsername && u.password === password);
+    if (!found) {
+      return jsonResponse({ error: 'Invalid username or password.' }, 401);
+    }
+
+    const safeUser = { id: found.id, username: found.username, email: found.email, created_at: found.created_at };
+    setStore(KEYS.CURRENT_USER, safeUser);
+    localStorage.setItem('gate_auth_token', `token_${safeUser.id}`);
+
+    return jsonResponse({
+      success: true,
+      token: `token_${safeUser.id}`,
+      user: safeUser,
+      message: 'Logged in successfully!',
+    });
+  }
+
+  if (pathname === '/api/auth/me' && method === 'GET') {
+    const user = getStore<any>(KEYS.CURRENT_USER, null);
+    return jsonResponse({
+      isGuest: !user,
+      user: user || null,
+    });
+  }
+
+  if (pathname === '/api/auth/logout' && method === 'POST') {
+    localStorage.removeItem(KEYS.CURRENT_USER);
+    localStorage.removeItem('gate_auth_token');
+    return jsonResponse({ success: true, message: 'Logged out successfully.' });
+  }
+
+  if (pathname === '/api/auth/migrate-guest' && method === 'POST') {
+    return jsonResponse({ success: true, message: 'Guest progress migrated.' });
+  }
 
   // 1. GET /api/overview
   if (pathname === '/api/overview' && method === 'GET') {

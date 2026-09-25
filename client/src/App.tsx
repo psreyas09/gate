@@ -8,13 +8,16 @@ import { MockTestView } from './components/MockTestView';
 import { CalendarView } from './components/CalendarView';
 import { ResourcesView } from './components/ResourcesView';
 import { BackupModal } from './components/BackupModal';
-import { OverviewData } from './types';
+import { AuthModal } from './components/AuthModal';
+import { OverviewData, User } from './types';
 import { Database, ShieldCheck } from 'lucide-react';
 
 export function App() {
   const [currentTab, setCurrentTab] = useState<NavTab>('dashboard');
   const [overview, setOverview] = useState<OverviewData | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isBackupOpen, setIsBackupOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [drillWeakOnly, setDrillWeakOnly] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
 
@@ -25,9 +28,39 @@ export function App() {
       .catch(console.error);
   };
 
+  const checkCurrentUser = () => {
+    fetch('/api/auth/me')
+      .then(res => res.json())
+      .then(data => {
+        if (!data.isGuest && data.user) {
+          setCurrentUser(data.user);
+        } else {
+          setCurrentUser(null);
+        }
+      })
+      .catch(() => setCurrentUser(null));
+  };
+
   useEffect(() => {
+    checkCurrentUser();
     fetchOverview();
   }, []);
+
+  const handleAuthSuccess = (user: User) => {
+    setCurrentUser(user);
+    fetchOverview();
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // offline logout
+    }
+    localStorage.removeItem('gate_auth_token');
+    setCurrentUser(null);
+    fetchOverview();
+  };
 
   const handleDrillWeakAreas = () => {
     setDrillWeakOnly(true);
@@ -53,6 +86,9 @@ export function App() {
         onTabChange={handleTabChange}
         overview={overview}
         onOpenBackup={() => setIsBackupOpen(true)}
+        currentUser={currentUser}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
+        onLogout={handleLogout}
       />
 
       {/* Main Content Area */}
@@ -99,6 +135,9 @@ export function App() {
         onTabChange={handleTabChange}
         overview={overview}
         onOpenBackup={() => setIsBackupOpen(true)}
+        currentUser={currentUser}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
+        onLogout={handleLogout}
       />
 
       {/* Footer (Desktop only - mobile uses dedicated bottom nav & More drawer) */}
@@ -128,6 +167,13 @@ export function App() {
         isOpen={isBackupOpen}
         onClose={() => setIsBackupOpen(false)}
         onRestoreSuccess={fetchOverview}
+      />
+
+      {/* Account Authentication & Migration Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={handleAuthSuccess}
       />
     </div>
   );

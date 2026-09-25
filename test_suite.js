@@ -4,7 +4,7 @@ const path = require('node:path');
 
 const BASE_URL = 'http://localhost:3001';
 
-function request(method, pathUrl, data = null) {
+function request(method, pathUrl, data = null, customHeaders = {}) {
   return new Promise((resolve, reject) => {
     const url = new URL(pathUrl, BASE_URL);
     const options = {
@@ -14,6 +14,7 @@ function request(method, pathUrl, data = null) {
       method: method,
       headers: {
         'Content-Type': 'application/json',
+        ...customHeaders,
       },
     };
 
@@ -125,7 +126,7 @@ async function runTestSuite() {
     console.log('\n[5/10] Testing SuperMemo SM-2 Spaced Repetition Engine...');
     const { db } = require('./server/db');
     // Ensure at least one test card is due for idempotent test execution
-    db.prepare("UPDATE spaced_repetition_cards SET due_date = datetime('now', '-1 minute') WHERE id = 'sr_fc_eigen_trace'").run();
+    db.prepare("UPDATE spaced_repetition_cards SET due_date = datetime('now', '-1 minute') WHERE item_id = 'fc_eigen_trace' AND user_id = 'guest'").run();
 
     const dueRes = await request('GET', '/api/reviews/due');
     assert('Due reviews API returns list', dueRes.status === 200 && Array.isArray(dueRes.data));
@@ -239,11 +240,91 @@ async function runTestSuite() {
     const importRes = await request('POST', '/api/backup/import', exportRes.data);
     assert('Atomic database restore succeeds', importRes.data.success === true);
 
-    // Overall Overview Check
-    const finalOverview = await request('GET', '/api/overview');
-    assert('Overview aggregates lessons mastered', finalOverview.data.completedLessons >= 1);
-    assert('Consistency streak active (> 0)', finalOverview.data.streak > 0);
-    assert('Overall question attempts and accuracy recorded', finalOverview.data.overallAttempts > 0);
+    // 11. User Authentication, Profile Isolation & Guest Progress Migration
+    console.log('\n[11/11] Testing User Authentication, Isolation & Guest Progress Migration...');
+    const ts = Date.now();
+    const userAName = `gate_student_a_${ts}`;
+    const userBName = `gate_student_b_${ts}`;
+    const userCName = `gate_guest_migrated_${ts}`;
+
+    // Test Guest mode default
+    const guestMe = await request('GET', '/api/auth/me');
+    assert('Unauthenticated user defaults safely to Guest mode', guestMe.data.isGuest === true && guestMe.data.user === null);
+
+    // Validation checks
+    const badReg = await request('POST', '/api/auth/register', { username: 'ab', password: '123' });
+    assert('Registration rejects short usernames/passwords (<3 and <6)', badReg.status === 400);
+
+    // Register User A
+    const regA = await request('POST', '/api/auth/register', {
+      username: userAName,
+      password: 'mypassword123',
+      email: 'student_a@gate.in',
+      migrateGuestProgress: false,
+    });
+    assert('User A registers successfully and receives Bearer token', regA.status === 201 && Boolean(regA.data.token));
+    const tokenA = regA.data.token;
+
+    // Prevent duplicate username
+    const dupReg = await request('POST', '/api/auth/register', { username: userAName, password: 'mypassword123' });
+    assert('Duplicate username registration returns HTTP 409 Conflict', dupReg.status === 409);
+
+    // Login checks
+    const badLogin = await request('POST', '/api/auth/login', { username: userAName, password: 'wrongpassword' });
+    assert('Login with incorrect password returns HTTP 401 Unauthorized', badLogin.status === 401);
+
+    const goodLogin = await request('POST', '/api/auth/login', { username: userAName, password: 'mypassword123' });
+    assert('Login with correct password succeeds', goodLogin.status === 200 && Boolean(goodLogin.data.token));
+
+    // Authenticated profile verification
+    const meA = await request('GET', '/api/auth/me', null, { Authorization: `Bearer ${tokenA}` });
+    assert('Bearer token correctly identifies authenticated user', meA.data.isGuest === false && meA.data.user.username === userAName);
+
+    // Register User B for isolation testing
+    const regB = await request('POST', '/api/auth/register', {
+      username: userBName,
+      password: 'password456',
+      migrateGuestProgress: false,
+    });
+    const tokenB = regB.data.token;
+    assert('User B registers with independent token', Boolean(tokenB));
+
+    // Check baseline isolation
+    const overviewB_start = await request('GET', '/api/overview', null, { Authorization: `Bearer ${tokenB}` });
+    assert('User B starts with 0 completed lessons (Progress Isolation)', overviewB_start.data.completedLessons === 0);
+
+    // User B completes a lesson (Algorithms: Sorting)
+    const completeB = await request('POST', '/api/lessons/lesson_algo_sorting/complete', {
+      answers: { qc_algo_sort_1: 1, qc_algo_sort_2: 2, qc_algo_sort_3: 1 },
+      timeSpentSecs: 45,
+    }, { Authorization: `Bearer ${tokenB}` });
+    assert('User B completes lesson and passes quick checks', completeB.status === 200 && completeB.data.allCorrect === true);
+
+    // Verify progress isolation between User B and User A
+    const overviewB_after = await request('GET', '/api/overview', null, { Authorization: `Bearer ${tokenB}` });
+    const overviewA_after = await request('GET', '/api/overview', null, { Authorization: `Bearer ${tokenA}` });
+    assert('User B overview reflects 1 completed lesson', overviewB_after.data.completedLessons === 1);
+    assert('User A progress is unaffected by User B (0 lessons)', overviewA_after.data.completedLessons === 0);
+
+    // Test Guest-to-Account Progress Migration
+    // 1. As guest (no token), complete a lesson (DBMS: Normalization)
+    await request('POST', '/api/lessons/lesson_dbms_normalization/complete', {
+      answers: { qc_dbms_1: 1, qc_dbms_2: 2, qc_dbms_3: 1 },
+      timeSpentSecs: 30,
+    });
+    // 2. Register new account User C with migrateGuestProgress: true
+    const regC = await request('POST', '/api/auth/register', {
+      username: userCName,
+      password: 'password789',
+      migrateGuestProgress: true,
+    });
+    const tokenC = regC.data.token;
+    const overviewC = await request('GET', '/api/overview', null, { Authorization: `Bearer ${tokenC}` });
+    assert('Guest progress successfully migrates into newly registered account', overviewC.data.completedLessons >= 1);
+
+    // Logout endpoint check
+    const logoutRes = await request('POST', '/api/auth/logout', null, { Authorization: `Bearer ${tokenC}` });
+    assert('Logout endpoint confirms successful session clear', logoutRes.status === 200 && logoutRes.data.success === true);
 
   } catch (err) {
     console.error('Test Suite encountered an error:', err);

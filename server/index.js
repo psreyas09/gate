@@ -1,16 +1,42 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const { db, DB_PATH } = require('./db');
 require('./seed'); // Ensure database is initialized & seeded
+
+function ensureGuestSeedCards() {
+  try {
+    const count = db.prepare("SELECT COUNT(*) as c FROM spaced_repetition_cards WHERE user_id = 'guest' AND item_type = 'flashcard'").get()?.c || 0;
+    if (count === 0) {
+      const flashcards = db.prepare('SELECT id FROM flashcards').all();
+      const insertSR = db.prepare(`
+        INSERT INTO spaced_repetition_cards (id, user_id, item_type, item_id, repetition, interval_days, ease_factor, due_date, last_reviewed_at, last_rating)
+        VALUES (?, 'guest', 'flashcard', ?, 0, 0, 2.5, ?, null, null)
+        ON CONFLICT(user_id, item_type, item_id) DO NOTHING
+      `);
+      const nowIso = new Date().toISOString();
+      flashcards.forEach(fc => {
+        insertSR.run(`sr_guest_${fc.id}`, fc.id, nowIso);
+      });
+    }
+  } catch (err) {
+    console.error('Error ensuring guest seed cards:', err.message);
+  }
+}
+
+ensureGuestSeedCards();
+
 const { calculateSM2 } = require('./sm2');
 const { exportDatabaseJSON, importDatabaseJSON, createLocalSnapshot } = require('./backup');
+const { hashPassword, verifyPassword, createToken, authMiddleware, requireAuth } = require('./auth');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+app.use(authMiddleware);
 
 // Helper: check correctness
 function evaluateAnswer(q, userAnswer) {
@@ -38,11 +64,193 @@ function evaluateAnswer(q, userAnswer) {
   return false;
 }
 
+/**
+ * Atomically migrate any guest progress into target user account
+ */
+function migrateGuestData(targetUserId) {
+  if (!targetUserId || targetUserId === 'guest') return;
+  db.exec('BEGIN TRANSACTION;');
+  try {
+    // 1. user_lesson_progress
+    const guestLessons = db.prepare("SELECT * FROM user_lesson_progress WHERE user_id = 'guest'").all();
+    const upsertLesson = db.prepare(`
+      INSERT INTO user_lesson_progress (lesson_id, user_id, status, quick_checks_passed, completed_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(user_id, lesson_id) DO UPDATE SET
+        status = CASE WHEN user_lesson_progress.status = 'completed' THEN 'completed' ELSE excluded.status END,
+        quick_checks_passed = MAX(user_lesson_progress.quick_checks_passed, excluded.quick_checks_passed),
+        completed_at = COALESCE(user_lesson_progress.completed_at, excluded.completed_at),
+        updated_at = excluded.updated_at
+    `);
+    guestLessons.forEach(l => {
+      upsertLesson.run(l.lesson_id, targetUserId, l.status, l.quick_checks_passed, l.completed_at, l.updated_at);
+    });
+    db.prepare("DELETE FROM user_lesson_progress WHERE user_id = 'guest'").run();
+
+    // 2. user_question_attempts
+    db.prepare("UPDATE user_question_attempts SET user_id = ? WHERE user_id = 'guest'").run(targetUserId);
+
+    // 3. spaced_repetition_cards
+    const guestCards = db.prepare("SELECT * FROM spaced_repetition_cards WHERE user_id = 'guest'").all();
+    const upsertCard = db.prepare(`
+      INSERT INTO spaced_repetition_cards (id, user_id, item_type, item_id, repetition, interval_days, ease_factor, due_date, last_reviewed_at, last_rating)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(user_id, item_type, item_id) DO NOTHING
+    `);
+    guestCards.forEach(c => {
+      const newCardId = `sr_${c.item_type}_${targetUserId}_${c.item_id}`;
+      upsertCard.run(newCardId, targetUserId, c.item_type, c.item_id, c.repetition, c.interval_days, c.ease_factor, c.due_date, c.last_reviewed_at, c.last_rating);
+    });
+    db.prepare("DELETE FROM spaced_repetition_cards WHERE user_id = 'guest'").run();
+    ensureGuestSeedCards();
+
+    // 4. mock_sessions
+    db.prepare("UPDATE mock_sessions SET user_id = ? WHERE user_id = 'guest'").run(targetUserId);
+
+    // 5. study_settings
+    const guestSettings = db.prepare("SELECT * FROM study_settings WHERE user_id = 'guest'").all();
+    const upsertSetting = db.prepare(`
+      INSERT INTO study_settings (key, user_id, value)
+      VALUES (?, ?, ?)
+      ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value
+    `);
+    guestSettings.forEach(s => {
+      upsertSetting.run(s.key, targetUserId, s.value);
+    });
+    db.prepare("DELETE FROM study_settings WHERE user_id = 'guest'").run();
+
+    db.exec('COMMIT;');
+  } catch (err) {
+    db.exec('ROLLBACK;');
+    console.error('Error during guest data migration:', err);
+    throw err;
+  }
+}
+
+// ================= AUTH ENDPOINTS =================
+
+// Register new user (Guest-first option)
+app.post('/api/auth/register', (req, res) => {
+  try {
+    const { username, password, email, migrateGuestProgress = true } = req.body;
+    if (!username || typeof username !== 'string' || username.trim().length < 3) {
+      return res.status(400).json({ error: 'Username must be at least 3 characters long.' });
+    }
+    if (!password || typeof password !== 'string' || password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+    }
+
+    const cleanUsername = username.trim();
+    const existing = db.prepare('SELECT id FROM users WHERE LOWER(username) = LOWER(?)').get(cleanUsername);
+    if (existing) {
+      return res.status(409).json({ error: 'Username already taken. Please choose another one.' });
+    }
+
+    const { hash, salt } = hashPassword(password);
+    const userId = `usr_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+    const nowIso = new Date().toISOString();
+
+    db.prepare(`
+      INSERT INTO users (id, username, email, password_hash, salt, created_at, last_login_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(userId, cleanUsername, email ? email.trim() : null, hash, salt, nowIso, nowIso);
+
+    if (migrateGuestProgress) {
+      migrateGuestData(userId);
+    }
+
+    const user = { id: userId, username: cleanUsername, email: email ? email.trim() : null, created_at: nowIso };
+    const token = createToken(user);
+
+    res.status(201).json({
+      success: true,
+      token,
+      user,
+      message: 'Account created successfully!'
+    });
+  } catch (err) {
+    console.error('Error registering user:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Login
+app.post('/api/auth/login', (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required.' });
+    }
+
+    const cleanUsername = username.trim();
+    const user = db.prepare('SELECT * FROM users WHERE LOWER(username) = LOWER(?)').get(cleanUsername);
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid username or password.' });
+    }
+
+    const isValid = verifyPassword(password, user.salt, user.password_hash);
+    if (!isValid) {
+      return res.status(401).json({ error: 'Invalid username or password.' });
+    }
+
+    const nowIso = new Date().toISOString();
+    db.prepare('UPDATE users SET last_login_at = ? WHERE id = ?').run(nowIso, user.id);
+
+    const safeUser = { id: user.id, username: user.username, email: user.email, created_at: user.created_at };
+    const token = createToken(safeUser);
+
+    res.json({
+      success: true,
+      token,
+      user: safeUser,
+      message: 'Logged in successfully!'
+    });
+  } catch (err) {
+    console.error('Error logging in:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Current User Profile
+app.get('/api/auth/me', (req, res) => {
+  if (req.user) {
+    res.json({
+      isGuest: false,
+      user: {
+        id: req.user.id,
+        username: req.user.username,
+        email: req.user.email,
+        created_at: req.user.created_at,
+      }
+    });
+  } else {
+    res.json({
+      isGuest: true,
+      user: null
+    });
+  }
+});
+
+// Migrate Guest Data into authenticated user
+app.post('/api/auth/migrate-guest', requireAuth, (req, res) => {
+  try {
+    migrateGuestData(req.userId);
+    res.json({ success: true, message: 'Guest progress migrated to your account.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Logout
+app.post('/api/auth/logout', (req, res) => {
+  res.json({ success: true, message: 'Logged out successfully.' });
+});
+
 // 1. Dashboard Overview
 app.get('/api/overview', (req, res) => {
   try {
     const totalLessons = db.prepare('SELECT COUNT(*) as c FROM lessons').get().c;
-    const completedLessons = db.prepare("SELECT COUNT(*) as c FROM user_lesson_progress WHERE status = 'completed'").get().c;
+    const completedLessons = db.prepare("SELECT COUNT(*) as c FROM user_lesson_progress WHERE status = 'completed' AND user_id = ?").get(req.userId).c;
 
     // Breakdown by tier
     const tierStats = db.prepare(`
@@ -51,16 +259,16 @@ app.get('/api/overview', (req, res) => {
       FROM subjects s
       JOIN topics t ON s.id = t.subject_id
       LEFT JOIN lessons l ON t.id = l.topic_id
-      LEFT JOIN user_lesson_progress p ON l.id = p.lesson_id
+      LEFT JOIN user_lesson_progress p ON l.id = p.lesson_id AND p.user_id = ?
       GROUP BY s.tier
       ORDER BY s.tier ASC
-    `).all();
+    `).all(req.userId);
 
     // Spaced repetition due count
     const nowIso = new Date().toISOString();
     const dueReviews = db.prepare(`
-      SELECT COUNT(*) as c FROM spaced_repetition_cards WHERE due_date <= ?
-    `).get(nowIso).c;
+      SELECT COUNT(*) as c FROM spaced_repetition_cards WHERE due_date <= ? AND user_id = ?
+    `).get(nowIso, req.userId).c;
 
     // Weak areas (Topics where question accuracy is < 60% with at least 1 attempt)
     const weakTopics = db.prepare(`
@@ -71,36 +279,39 @@ app.get('/api/overview', (req, res) => {
       FROM topics t
       JOIN subjects s ON t.subject_id = s.id
       JOIN questions q ON t.id = q.topic_id
-      JOIN user_question_attempts a ON q.id = a.question_id
+      JOIN user_question_attempts a ON q.id = a.question_id AND a.user_id = ?
       GROUP BY t.id
       HAVING accuracy < 60.0 AND total_attempts >= 1
       ORDER BY t.is_high_yield DESC, accuracy ASC
       LIMIT 5
-    `).all();
+    `).all(req.userId);
 
     // Overall attempt accuracy
     const overallStats = db.prepare(`
       SELECT COUNT(*) as total_attempts,
              COALESCE(SUM(is_correct), 0) as total_correct
       FROM user_question_attempts
-    `).get();
+      WHERE user_id = ?
+    `).get(req.userId);
 
     // Mock summary
     const mockSummary = db.prepare(`
       SELECT COUNT(*) as total_mocks,
              COALESCE(MAX(score_obtained), 0) as high_score,
-             COALESCE((SELECT score_obtained FROM mock_sessions ORDER BY created_at DESC LIMIT 1), 0) as latest_score,
-             COALESCE((SELECT passed_cutoff FROM mock_sessions ORDER BY created_at DESC LIMIT 1), 0) as latest_passed
+             COALESCE((SELECT score_obtained FROM mock_sessions WHERE user_id = ? ORDER BY created_at DESC LIMIT 1), 0) as latest_score,
+             COALESCE((SELECT passed_cutoff FROM mock_sessions WHERE user_id = ? ORDER BY created_at DESC LIMIT 1), 0) as latest_passed
       FROM mock_sessions
-    `).get();
+      WHERE user_id = ?
+    `).get(req.userId, req.userId, req.userId);
 
     // Consistency streak: count distinct days in last 30 days
     const recentActivityDays = db.prepare(`
       SELECT DISTINCT SUBSTR(attempted_at, 1, 10) as day
       FROM user_question_attempts
+      WHERE user_id = ?
       ORDER BY day DESC
       LIMIT 30
-    `).all().map(r => r.day);
+    `).all(req.userId).map(r => r.day);
 
     let streak = 0;
     const todayStr = new Date().toISOString().substring(0, 10);
@@ -115,10 +326,10 @@ app.get('/api/overview', (req, res) => {
       }
     }
     if (activeDay) {
-      streak = recentActivityDays.length; // simplified streak count
+      streak = recentActivityDays.length; // streak count
     }
 
-    const settingsRows = db.prepare('SELECT * FROM study_settings').all();
+    const settingsRows = db.prepare('SELECT * FROM study_settings WHERE user_id = ?').all(req.userId);
     const settings = {};
     settingsRows.forEach(s => { settings[s.key] = s.value; });
 
@@ -155,10 +366,10 @@ app.get('/api/subjects', (req, res) => {
       LEFT JOIN topics t ON s.id = t.subject_id
       LEFT JOIN lessons l ON t.id = l.topic_id
       LEFT JOIN questions q ON s.id = q.subject_id
-      LEFT JOIN user_lesson_progress p ON l.id = p.lesson_id
+      LEFT JOIN user_lesson_progress p ON l.id = p.lesson_id AND p.user_id = ?
       GROUP BY s.id
       ORDER BY s.tier ASC, s.priority_weight DESC
-    `).all();
+    `).all(req.userId);
 
     res.json(subjects);
   } catch (err) {
@@ -180,9 +391,9 @@ app.get('/api/topics', (req, res) => {
       FROM topics t
       JOIN subjects s ON t.subject_id = s.id
       LEFT JOIN lessons l ON t.id = l.topic_id
-      LEFT JOIN user_lesson_progress p ON l.id = p.lesson_id
+      LEFT JOIN user_lesson_progress p ON l.id = p.lesson_id AND p.user_id = ?
     `;
-    const params = [];
+    const params = [req.userId];
     if (subject_id) {
       query += ' WHERE t.subject_id = ?';
       params.push(subject_id);
@@ -205,9 +416,9 @@ app.get('/api/lessons/:lessonId', (req, res) => {
       FROM lessons l
       JOIN topics t ON l.topic_id = t.id
       JOIN subjects s ON t.subject_id = s.id
-      LEFT JOIN user_lesson_progress p ON l.id = p.lesson_id
+      LEFT JOIN user_lesson_progress p ON l.id = p.lesson_id AND p.user_id = ?
       WHERE l.id = ?
-    `).get(req.params.lessonId);
+    `).get(req.userId, req.params.lessonId);
 
     if (!lesson) {
       return res.status(404).json({ error: 'Lesson not found' });
@@ -223,7 +434,7 @@ app.get('/api/lessons/:lessonId', (req, res) => {
 // 5. Complete Lesson with Quick-Checks verification
 app.post('/api/lessons/:lessonId/complete', (req, res) => {
   try {
-    const { answers, timeSpentSecs = 60 } = req.body; // answers is an object: { [qc_id]: selected_index }
+    const { answers, timeSpentSecs = 60 } = req.body;
     const lesson = db.prepare('SELECT * FROM lessons WHERE id = ?').get(req.params.lessonId);
     if (!lesson) {
       return res.status(404).json({ error: 'Lesson not found' });
@@ -250,10 +461,11 @@ app.post('/api/lessons/:lessonId/complete', (req, res) => {
       // Record question attempt
       const attemptId = `att_qc_${Date.now()}_${idx}`;
       db.prepare(`
-        INSERT INTO user_question_attempts (id, question_id, user_answer, is_correct, time_spent_secs, mode, session_id, attempted_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO user_question_attempts (id, user_id, question_id, user_answer, is_correct, time_spent_secs, mode, session_id, attempted_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         attemptId,
+        req.userId,
         qc.id,
         String(userSelected),
         isCorrect ? 1 : 0,
@@ -270,36 +482,36 @@ app.post('/api/lessons/:lessonId/complete', (req, res) => {
     if (allCorrect) {
       // Upsert progress as completed
       db.prepare(`
-        INSERT INTO user_lesson_progress (lesson_id, status, quick_checks_passed, completed_at, updated_at)
-        VALUES (?, 'completed', ?, ?, ?)
-        ON CONFLICT(lesson_id) DO UPDATE SET
+        INSERT INTO user_lesson_progress (lesson_id, user_id, status, quick_checks_passed, completed_at, updated_at)
+        VALUES (?, ?, 'completed', ?, ?, ?)
+        ON CONFLICT(user_id, lesson_id) DO UPDATE SET
           status = 'completed',
           quick_checks_passed = excluded.quick_checks_passed,
           completed_at = excluded.completed_at,
           updated_at = excluded.updated_at
-      `).run(lesson.id, passedCount, nowIso, nowIso);
+      `).run(lesson.id, req.userId, passedCount, nowIso, nowIso);
 
-      // Create an automatic spaced repetition review card for this lesson so it resurfaces in 1 day!
-      const srId = `sr_lesson_${lesson.id}`;
-      const existingSr = db.prepare('SELECT * FROM spaced_repetition_cards WHERE id = ?').get(srId);
+      // Create an automatic spaced repetition review card for this lesson
+      const srId = `sr_lesson_${req.userId}_${lesson.id}`;
+      const existingSr = db.prepare('SELECT * FROM spaced_repetition_cards WHERE user_id = ? AND item_type = ? AND item_id = ?').get(req.userId, 'lesson', lesson.id);
       if (!existingSr) {
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
         db.prepare(`
-          INSERT INTO spaced_repetition_cards (id, item_type, item_id, repetition, interval_days, ease_factor, due_date, last_reviewed_at, last_rating)
-          VALUES (?, 'lesson', ?, 0, 1, 2.5, ?, ?, 3)
-        `).run(srId, lesson.id, tomorrow.toISOString(), nowIso);
+          INSERT INTO spaced_repetition_cards (id, user_id, item_type, item_id, repetition, interval_days, ease_factor, due_date, last_reviewed_at, last_rating)
+          VALUES (?, ?, 'lesson', ?, 0, 1, 2.5, ?, ?, 3)
+        `).run(srId, req.userId, lesson.id, tomorrow.toISOString(), nowIso);
       }
     } else {
       // Mark in_progress
       db.prepare(`
-        INSERT INTO user_lesson_progress (lesson_id, status, quick_checks_passed, completed_at, updated_at)
-        VALUES (?, 'in_progress', ?, NULL, ?)
-        ON CONFLICT(lesson_id) DO UPDATE SET
+        INSERT INTO user_lesson_progress (lesson_id, user_id, status, quick_checks_passed, completed_at, updated_at)
+        VALUES (?, ?, 'in_progress', ?, NULL, ?)
+        ON CONFLICT(user_id, lesson_id) DO UPDATE SET
           status = 'in_progress',
           quick_checks_passed = excluded.quick_checks_passed,
           updated_at = excluded.updated_at
-      `).run(lesson.id, passedCount, nowIso);
+      `).run(lesson.id, req.userId, passedCount, nowIso);
     }
 
     res.json({
@@ -355,10 +567,10 @@ app.get('/api/reviews/due', (req, res) => {
       LEFT JOIN lessons l ON sr.item_type = 'lesson' AND sr.item_id = l.id
       LEFT JOIN topics t_l ON l.topic_id = t_l.id
       LEFT JOIN subjects s_l ON t_l.subject_id = s_l.id
-      WHERE sr.due_date <= ? OR sr.repetition = 0
+      WHERE sr.user_id = ? AND (sr.due_date <= ? OR sr.repetition = 0)
       ORDER BY sr.repetition ASC, sr.due_date ASC
       LIMIT 20
-    `).all(nowIso);
+    `).all(req.userId, nowIso);
 
     dueCards.forEach(c => {
       if (c.question_options) {
@@ -375,12 +587,12 @@ app.get('/api/reviews/due', (req, res) => {
 // 7. Rate Spaced Repetition Card (SM-2)
 app.post('/api/reviews/:cardId/rate', (req, res) => {
   try {
-    const { rating } = req.body; // 1 = Again, 2 = Hard, 3 = Good, 4 = Easy
+    const { rating } = req.body;
     if (![1, 2, 3, 4].includes(Number(rating))) {
       return res.status(400).json({ error: 'Rating must be 1, 2, 3, or 4' });
     }
 
-    const card = db.prepare('SELECT * FROM spaced_repetition_cards WHERE id = ?').get(req.params.cardId);
+    const card = db.prepare('SELECT * FROM spaced_repetition_cards WHERE id = ? AND user_id = ?').get(req.params.cardId, req.userId);
     if (!card) {
       return res.status(404).json({ error: 'Card not found' });
     }
@@ -396,7 +608,7 @@ app.post('/api/reviews/:cardId/rate', (req, res) => {
     db.prepare(`
       UPDATE spaced_repetition_cards
       SET repetition = ?, interval_days = ?, ease_factor = ?, due_date = ?, last_reviewed_at = ?, last_rating = ?
-      WHERE id = ?
+      WHERE id = ? AND user_id = ?
     `).run(
       sm2Result.repetition,
       sm2Result.intervalDays,
@@ -404,7 +616,8 @@ app.post('/api/reviews/:cardId/rate', (req, res) => {
       sm2Result.dueDate,
       nowIso,
       Number(rating),
-      card.id
+      card.id,
+      req.userId
     );
 
     res.json({
@@ -425,14 +638,14 @@ app.get('/api/questions', (req, res) => {
 
     let query = `
       SELECT q.*, s.name as subject_name, s.tier, s.reference_book, t.name as topic_name, t.is_high_yield,
-             (SELECT COUNT(*) FROM user_question_attempts a WHERE a.question_id = q.id) as user_attempts_count,
-             (SELECT is_correct FROM user_question_attempts a WHERE a.question_id = q.id ORDER BY attempted_at DESC LIMIT 1) as last_attempt_correct
+             (SELECT COUNT(*) FROM user_question_attempts a WHERE a.question_id = q.id AND a.user_id = ?) as user_attempts_count,
+             (SELECT is_correct FROM user_question_attempts a WHERE a.question_id = q.id AND a.user_id = ? ORDER BY attempted_at DESC LIMIT 1) as last_attempt_correct
       FROM questions q
       JOIN subjects s ON q.subject_id = s.id
       JOIN topics t ON q.topic_id = t.id
       WHERE 1=1
     `;
-    const params = [];
+    const params = [req.userId, req.userId];
 
     if (subject_id) {
       query += ' AND q.subject_id = ?';
@@ -500,10 +713,11 @@ app.post('/api/questions/:questionId/attempt', (req, res) => {
     const nowIso = new Date().toISOString();
 
     db.prepare(`
-      INSERT INTO user_question_attempts (id, question_id, user_answer, is_correct, time_spent_secs, mode, session_id, attempted_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO user_question_attempts (id, user_id, question_id, user_answer, is_correct, time_spent_secs, mode, session_id, attempted_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       attemptId,
+      req.userId,
       q.id,
       typeof userAnswer === 'object' ? JSON.stringify(userAnswer) : String(userAnswer),
       isCorrect ? 1 : 0,
@@ -514,19 +728,19 @@ app.post('/api/questions/:questionId/attempt', (req, res) => {
     );
 
     // If missed or in practice mode, create/update a spaced repetition card so it resurfaces!
-    const srId = `sr_q_${q.id}`;
-    const existingSr = db.prepare('SELECT * FROM spaced_repetition_cards WHERE id = ?').get(srId);
+    const srId = `sr_q_${req.userId}_${q.id}`;
+    const existingSr = db.prepare('SELECT * FROM spaced_repetition_cards WHERE user_id = ? AND item_type = ? AND item_id = ?').get(req.userId, 'question', q.id);
     if (!isCorrect) {
       // Schedule for review tomorrow
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       if (existingSr) {
-        db.prepare('UPDATE spaced_repetition_cards SET due_date = ?, repetition = 0 WHERE id = ?').run(tomorrow.toISOString(), srId);
+        db.prepare('UPDATE spaced_repetition_cards SET due_date = ?, repetition = 0 WHERE id = ? AND user_id = ?').run(tomorrow.toISOString(), existingSr.id, req.userId);
       } else {
         db.prepare(`
-          INSERT INTO spaced_repetition_cards (id, item_type, item_id, repetition, interval_days, ease_factor, due_date, last_reviewed_at, last_rating)
-          VALUES (?, 'question', ?, 0, 1, 2.5, ?, ?, 1)
-        `).run(srId, q.id, tomorrow.toISOString(), nowIso);
+          INSERT INTO spaced_repetition_cards (id, user_id, item_type, item_id, repetition, interval_days, ease_factor, due_date, last_reviewed_at, last_rating)
+          VALUES (?, ?, 'question', ?, 0, 1, 2.5, ?, ?, 1)
+        `).run(srId, req.userId, q.id, tomorrow.toISOString(), nowIso);
       }
     }
 
@@ -550,22 +764,22 @@ app.get('/api/weak-areas/drill', (req, res) => {
     // Pull disproportionately from low-accuracy topics or topics not yet mastered
     const drillQuestions = db.prepare(`
       SELECT q.*, s.name as subject_name, s.tier, t.name as topic_name, t.is_high_yield,
-             (SELECT COUNT(*) FROM user_question_attempts a WHERE a.question_id = q.id) as attempts_count,
-             (SELECT SUM(a.is_correct) FROM user_question_attempts a WHERE a.question_id = q.id) as correct_count
+             (SELECT COUNT(*) FROM user_question_attempts a WHERE a.question_id = q.id AND a.user_id = ?) as attempts_count,
+             (SELECT SUM(a.is_correct) FROM user_question_attempts a WHERE a.question_id = q.id AND a.user_id = ?) as correct_count
       FROM questions q
       JOIN topics t ON q.topic_id = t.id
       JOIN subjects s ON q.subject_id = s.id
       WHERE t.id IN (
         SELECT t2.id FROM topics t2
         JOIN questions q2 ON t2.id = q2.topic_id
-        LEFT JOIN user_question_attempts a2 ON q2.id = a2.question_id
+        LEFT JOIN user_question_attempts a2 ON q2.id = a2.question_id AND a2.user_id = ?
         GROUP BY t2.id
         ORDER BY (COALESCE(SUM(a2.is_correct), 0) * 1.0 / MAX(COUNT(a2.id), 1)) ASC, t2.is_high_yield DESC
         LIMIT 4
       )
       ORDER BY RANDOM()
       LIMIT 10
-    `).all();
+    `).all(req.userId, req.userId, req.userId);
 
     drillQuestions.forEach(q => {
       if (q.options) {
@@ -713,10 +927,11 @@ app.post('/api/mock/:sessionId/submit', (req, res) => {
 
     // 1. Save parent session first
     db.prepare(`
-      INSERT INTO mock_sessions (id, title, total_marks, score_obtained, target_cutoff, passed_cutoff, duration_seconds, time_spent_seconds, subject_breakdown, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO mock_sessions (id, user_id, title, total_marks, score_obtained, target_cutoff, passed_cutoff, duration_seconds, time_spent_seconds, subject_breakdown, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       sessionId,
+      req.userId,
       title,
       parseFloat(totalMarks.toFixed(2)),
       parseFloat(scoreObtained.toFixed(2)),
@@ -766,7 +981,7 @@ app.post('/api/mock/:sessionId/submit', (req, res) => {
 // 13. Mock History
 app.get('/api/mock/history', (req, res) => {
   try {
-    const history = db.prepare('SELECT * FROM mock_sessions ORDER BY created_at DESC').all();
+    const history = db.prepare('SELECT * FROM mock_sessions WHERE user_id = ? ORDER BY created_at DESC').all(req.userId);
     history.forEach(h => {
       if (h.subject_breakdown) {
         try { h.subject_breakdown = JSON.parse(h.subject_breakdown); } catch {}
@@ -781,7 +996,7 @@ app.get('/api/mock/history', (req, res) => {
 // 14. Study Calendar & Settings
 app.get('/api/calendar', (req, res) => {
   try {
-    const rows = db.prepare('SELECT * FROM study_settings').all();
+    const rows = db.prepare('SELECT * FROM study_settings WHERE user_id = ?').all(req.userId);
     const config = {};
     rows.forEach(r => {
       try {
@@ -800,14 +1015,14 @@ app.post('/api/calendar', (req, res) => {
   try {
     const { target_exam_date, target_cutoff, current_mode, busy_periods } = req.body;
     const stmt = db.prepare(`
-      INSERT INTO study_settings (key, value) VALUES (?, ?)
-      ON CONFLICT(key) DO UPDATE SET value = excluded.value
+      INSERT INTO study_settings (key, user_id, value) VALUES (?, ?, ?)
+      ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value
     `);
 
-    if (target_exam_date) stmt.run('target_exam_date', String(target_exam_date));
-    if (target_cutoff) stmt.run('target_cutoff', String(target_cutoff));
-    if (current_mode) stmt.run('current_mode', String(current_mode));
-    if (busy_periods) stmt.run('busy_periods', JSON.stringify(busy_periods));
+    if (target_exam_date) stmt.run('target_exam_date', req.userId, String(target_exam_date));
+    if (target_cutoff) stmt.run('target_cutoff', req.userId, String(target_cutoff));
+    if (current_mode) stmt.run('current_mode', req.userId, String(current_mode));
+    if (busy_periods) stmt.run('busy_periods', req.userId, JSON.stringify(busy_periods));
 
     res.json({ success: true, message: 'Settings saved' });
   } catch (err) {

@@ -13,13 +13,24 @@ export function installApiInterceptor() {
 
     // Only intercept /api/ routes
     if (urlString.startsWith('/api/') || urlString.includes('/api/')) {
+      const token = localStorage.getItem('gate_auth_token');
+      const modifiedInit: RequestInit = { ...(init || {}) };
+
+      if (token) {
+        const headers = new Headers(modifiedInit.headers || {});
+        if (!headers.has('Authorization')) {
+          headers.set('Authorization', `Bearer ${token}`);
+        }
+        modifiedInit.headers = headers;
+      }
+
       const isLocalhost =
         window.location.hostname === 'localhost' ||
         window.location.hostname === '127.0.0.1';
 
       if (isLocalhost) {
         try {
-          const res = await originalFetch(input, init);
+          const res = await originalFetch(input, modifiedInit);
           // If the Express server answered with valid status (not 404 or server gateway error)
           if (res.status !== 404 && res.status !== 502 && res.status !== 503) {
             return res;
@@ -30,7 +41,7 @@ export function installApiInterceptor() {
       }
 
       // Handle in-browser via localApi (Vercel, offline, or standalone)
-      return handleLocalApi(urlString, init);
+      return handleLocalApi(urlString, modifiedInit);
     }
 
     return originalFetch(input, init);

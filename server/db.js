@@ -75,17 +75,30 @@ function initSchema() {
       FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      username TEXT NOT NULL UNIQUE,
+      email TEXT,
+      password_hash TEXT NOT NULL,
+      salt TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      last_login_at TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS user_lesson_progress (
-      lesson_id TEXT PRIMARY KEY,
+      lesson_id TEXT,
+      user_id TEXT NOT NULL DEFAULT 'guest',
       status TEXT NOT NULL DEFAULT 'not_started', -- 'not_started', 'in_progress', 'completed'
       quick_checks_passed INTEGER DEFAULT 0,
       completed_at TEXT,
       updated_at TEXT,
+      PRIMARY KEY (user_id, lesson_id),
       FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS user_question_attempts (
       id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL DEFAULT 'guest',
       question_id TEXT NOT NULL,
       user_answer TEXT,
       is_correct INTEGER NOT NULL,
@@ -97,6 +110,7 @@ function initSchema() {
 
     CREATE TABLE IF NOT EXISTS spaced_repetition_cards (
       id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL DEFAULT 'guest',
       item_type TEXT NOT NULL, -- 'flashcard' | 'question'
       item_id TEXT NOT NULL,
       repetition INTEGER DEFAULT 0,
@@ -104,12 +118,12 @@ function initSchema() {
       ease_factor REAL DEFAULT 2.5,
       due_date TEXT NOT NULL,
       last_reviewed_at TEXT,
-      last_rating INTEGER, -- 1=Again, 2=Hard, 3=Good, 4=Easy
-      UNIQUE(item_type, item_id)
+      last_rating INTEGER -- 1=Again, 2=Hard, 3=Good, 4=Easy
     );
 
     CREATE TABLE IF NOT EXISTS mock_sessions (
       id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL DEFAULT 'guest',
       title TEXT NOT NULL,
       total_marks REAL NOT NULL DEFAULT 100.0,
       score_obtained REAL NOT NULL,
@@ -137,16 +151,107 @@ function initSchema() {
     );
 
     CREATE TABLE IF NOT EXISTS study_settings (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL
+      key TEXT NOT NULL,
+      user_id TEXT NOT NULL DEFAULT 'guest',
+      value TEXT NOT NULL,
+      PRIMARY KEY (user_id, key)
     );
 
     CREATE INDEX IF NOT EXISTS idx_topics_subject ON topics(subject_id);
     CREATE INDEX IF NOT EXISTS idx_questions_topic ON questions(topic_id);
     CREATE INDEX IF NOT EXISTS idx_questions_subject ON questions(subject_id);
     CREATE INDEX IF NOT EXISTS idx_attempts_question ON user_question_attempts(question_id);
+    CREATE INDEX IF NOT EXISTS idx_attempts_user ON user_question_attempts(user_id);
     CREATE INDEX IF NOT EXISTS idx_sr_due ON spaced_repetition_cards(due_date);
+    CREATE INDEX IF NOT EXISTS idx_sr_user_due ON spaced_repetition_cards(user_id, due_date);
+    CREATE INDEX IF NOT EXISTS idx_mock_user ON mock_sessions(user_id);
   `);
+
+  // Ensure user_id column exists if table was created in an earlier schema version
+  const ensureColumn = (table, column, definition) => {
+    try {
+      const cols = db.prepare(`PRAGMA table_info(${table})`).all();
+      if (!cols.some(c => c.name === column)) {
+        db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition};`);
+      }
+    } catch (err) {
+      console.error(`Migration error adding ${column} to ${table}:`, err.message);
+    }
+  };
+
+  ensureColumn('user_lesson_progress', 'user_id', "TEXT NOT NULL DEFAULT 'guest'");
+  ensureColumn('user_question_attempts', 'user_id', "TEXT NOT NULL DEFAULT 'guest'");
+  ensureColumn('spaced_repetition_cards', 'user_id', "TEXT NOT NULL DEFAULT 'guest'");
+  ensureColumn('mock_sessions', 'user_id', "TEXT NOT NULL DEFAULT 'guest'");
+  ensureColumn('study_settings', 'user_id', "TEXT NOT NULL DEFAULT 'guest'");
+
+  // Table structure migration for tables that initially had single-column primary keys or unique constraints
+  try {
+    const ulpSql = db.prepare("SELECT sql FROM sqlite_master WHERE name='user_lesson_progress'").get()?.sql || '';
+    if (ulpSql.includes('lesson_id TEXT PRIMARY KEY')) {
+      db.exec(`
+        CREATE TABLE _new_ulp (
+          lesson_id TEXT NOT NULL,
+          user_id TEXT NOT NULL DEFAULT 'guest',
+          status TEXT NOT NULL DEFAULT 'not_started',
+          quick_checks_passed INTEGER DEFAULT 0,
+          completed_at TEXT,
+          updated_at TEXT,
+          PRIMARY KEY (user_id, lesson_id),
+          FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE CASCADE
+        );
+        INSERT OR IGNORE INTO _new_ulp (lesson_id, user_id, status, quick_checks_passed, completed_at, updated_at)
+          SELECT lesson_id, COALESCE(user_id, 'guest'), status, quick_checks_passed, completed_at, updated_at FROM user_lesson_progress;
+        DROP TABLE user_lesson_progress;
+        ALTER TABLE _new_ulp RENAME TO user_lesson_progress;
+        CREATE INDEX IF NOT EXISTS idx_ulp_user ON user_lesson_progress(user_id);
+      `);
+    }
+
+    const ssSql = db.prepare("SELECT sql FROM sqlite_master WHERE name='study_settings'").get()?.sql || '';
+    if (ssSql.includes('key TEXT PRIMARY KEY')) {
+      db.exec(`
+        CREATE TABLE _new_ss (
+          key TEXT NOT NULL,
+          user_id TEXT NOT NULL DEFAULT 'guest',
+          value TEXT NOT NULL,
+          PRIMARY KEY (user_id, key)
+        );
+        INSERT OR IGNORE INTO _new_ss (key, user_id, value)
+          SELECT key, COALESCE(user_id, 'guest'), value FROM study_settings;
+        DROP TABLE study_settings;
+        ALTER TABLE _new_ss RENAME TO study_settings;
+        CREATE INDEX IF NOT EXISTS idx_settings_user ON study_settings(user_id);
+      `);
+    }
+
+    const srcSql = db.prepare("SELECT sql FROM sqlite_master WHERE name='spaced_repetition_cards'").get()?.sql || '';
+    if (srcSql.includes('UNIQUE(item_type, item_id)') && !srcSql.includes('UNIQUE(user_id, item_type, item_id)')) {
+      db.exec(`
+        CREATE TABLE _new_src (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL DEFAULT 'guest',
+          item_type TEXT NOT NULL,
+          item_id TEXT NOT NULL,
+          repetition INTEGER DEFAULT 0,
+          interval_days REAL DEFAULT 0,
+          ease_factor REAL DEFAULT 2.5,
+          due_date TEXT NOT NULL,
+          last_reviewed_at TEXT,
+          last_rating INTEGER,
+          UNIQUE(user_id, item_type, item_id)
+        );
+        INSERT OR IGNORE INTO _new_src (id, user_id, item_type, item_id, repetition, interval_days, ease_factor, due_date, last_reviewed_at, last_rating)
+          SELECT id, COALESCE(user_id, 'guest'), item_type, item_id, repetition, interval_days, ease_factor, due_date, last_reviewed_at, last_rating FROM spaced_repetition_cards;
+        DROP TABLE spaced_repetition_cards;
+        ALTER TABLE _new_src RENAME TO spaced_repetition_cards;
+        CREATE INDEX IF NOT EXISTS idx_sr_due ON spaced_repetition_cards(due_date);
+        CREATE INDEX IF NOT EXISTS idx_sr_user_due ON spaced_repetition_cards(user_id, due_date);
+      `);
+    }
+  } catch (err) {
+    console.error('Error during table constraint migration:', err);
+  }
 }
 
 initSchema();

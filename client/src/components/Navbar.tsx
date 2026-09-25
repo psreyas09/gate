@@ -12,9 +12,11 @@ import {
   Bookmark,
   MoreHorizontal,
   X,
-  ShieldCheck
+  ShieldCheck,
+  User as UserIcon,
+  LogOut,
 } from 'lucide-react';
-import { OverviewData } from '../types';
+import { OverviewData, User } from '../types';
 
 export type NavTab = 'dashboard' | 'lessons' | 'spaced_repetition' | 'practice' | 'mock' | 'calendar' | 'resources';
 
@@ -23,6 +25,9 @@ interface NavbarProps {
   onTabChange: (tab: NavTab) => void;
   overview: OverviewData | null;
   onOpenBackup: () => void;
+  currentUser: User | null;
+  onOpenAuth: () => void;
+  onLogout: () => void;
 }
 
 const TABS: { id: NavTab; label: string; mobileLabel: string; icon: any; badgeKey?: 'dueReviews' }[] = [
@@ -40,6 +45,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   onTabChange,
   overview,
   onOpenBackup,
+  currentUser,
+  onOpenAuth,
+  onLogout,
 }) => {
   const isLightMode = overview?.settings?.current_mode === 'light';
 
@@ -117,6 +125,30 @@ export const Navbar: React.FC<NavbarProps> = ({
               <HardDriveDownload className="w-3.5 h-3.5 text-cyan-400" />
               <span className="hidden sm:inline">Backup</span>
             </button>
+
+            {/* Account / User Button */}
+            {currentUser ? (
+              <button
+                onClick={onLogout}
+                className="group flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg bg-slate-800/90 hover:bg-rose-500/10 border border-slate-700 hover:border-rose-500/30 text-slate-200 hover:text-rose-300 transition-colors text-[11px] sm:text-xs font-medium"
+                title={`Logged in as ${currentUser.username}. Click to sign out.`}
+              >
+                <div className="w-4 h-4 rounded-full bg-cyan-600 flex items-center justify-center text-[10px] font-bold text-white uppercase shrink-0">
+                  {currentUser.username[0]}
+                </div>
+                <span className="max-w-[70px] sm:max-w-[100px] truncate hidden xs:inline">{currentUser.username}</span>
+                <LogOut className="w-3 h-3 text-slate-400 group-hover:text-rose-400 shrink-0" />
+              </button>
+            ) : (
+              <button
+                onClick={onOpenAuth}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white shadow-sm shadow-cyan-900/30 text-[11px] sm:text-xs font-semibold transition-all active:scale-95"
+                title="Sign In or Create Account to save progress across devices"
+              >
+                <UserIcon className="w-3.5 h-3.5" />
+                <span>Sign In</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -162,6 +194,9 @@ export const MobileBottomNav: React.FC<NavbarProps> = ({
   onTabChange,
   overview,
   onOpenBackup,
+  currentUser,
+  onOpenAuth,
+  onLogout,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isLightMode = overview?.settings?.current_mode === 'light';
@@ -253,6 +288,54 @@ export const MobileBottomNav: React.FC<NavbarProps> = ({
             onClick={() => setMobileMenuOpen(false)}
           />
           <div className="relative bg-slate-900 border-t border-slate-800 rounded-t-2xl p-5 space-y-4 max-h-[80vh] overflow-y-auto safe-bottom">
+            {/* User Account Section in Mobile Drawer */}
+            <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-between">
+              {currentUser ? (
+                <>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-cyan-600 flex items-center justify-center font-bold text-white text-xs">
+                      {currentUser.username[0].toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-slate-100">{currentUser.username}</div>
+                      <div className="text-[10px] text-emerald-400">Account Active</div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onLogout();
+                    }}
+                    className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-lg transition-colors"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Sign Out</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-300">
+                      <UserIcon className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-slate-200">Guest Mode</div>
+                      <div className="text-[10px] text-slate-400">Local progress only</div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onOpenAuth();
+                    }}
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-white bg-gradient-to-r from-cyan-600 to-indigo-600 rounded-lg shadow-sm shadow-cyan-900/30"
+                  >
+                    <span>Sign In</span>
+                  </button>
+                </>
+              )}
+            </div>
+
             <div className="flex items-center justify-between pb-2 border-b border-slate-800">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-400">All Navigation</span>
               <button
