@@ -5,8 +5,9 @@ import { handleLocalApi } from './localApi';
  * 1. Automatically attaches Bearer token if present.
  * 2. Attempts request against Express backend.
  * 3. Detects HTML SPA fallback (e.g. <!doctype html> from Vite/Vercel/Static server),
- *    404, or proxy failure (500/502/503/504) and immediately routes to handleLocalApi.
- * 4. Ensures responses never throw "Unexpected token '<', <!doctype... is not valid JSON".
+ *    405 Method Not Allowed (static server rejecting POST/PUT), 404, 50x, or non-JSON bodies.
+ *    Whenever a non-JSON / proxy / static error occurs, immediately falls back to in-browser handleLocalApi.
+ * 4. Ensures responses never throw "Unexpected token '<', <!doctype... is not valid JSON" or "Unexpected end of JSON input".
  */
 export function installApiInterceptor() {
   const originalFetch = window.fetch.bind(window);
@@ -42,34 +43,48 @@ export function installApiInterceptor() {
           contentType.includes('text/html') ||
           contentType.includes('application/xhtml');
 
-        // Check status codes indicating proxy failure or missing server endpoint
-        const isProxyError =
+        // Check status codes indicating proxy failure, static server rejecting POST (405), or missing server endpoint
+        const isProxyOrStaticError =
           res.status === 404 ||
+          res.status === 405 ||
           res.status === 500 ||
+          res.status === 501 ||
           res.status === 502 ||
           res.status === 503 ||
-          res.status === 504;
+          res.status === 504 ||
+          res.status === 0;
 
-        if (isHtmlContentType || isProxyError) {
-          // Fall back seamlessly to browser localStorage implementation
+        if (isHtmlContentType || isProxyOrStaticError) {
+          // Immediately route to in-browser localStorage implementation
           return handleLocalApi(urlString, modifiedInit);
         }
 
-        // Peek body text to detect HTML disguise even if headers were ambiguous
+        // Peek body text to detect HTML disguise, empty body, or invalid non-JSON output
         try {
           const clone = res.clone();
           const text = await clone.text();
           const trimmed = text.trim();
+
           if (
             trimmed.startsWith('<') ||
             trimmed.toLowerCase().startsWith('<!doctype') ||
-            trimmed.toLowerCase().startsWith('<html')
+            trimmed.toLowerCase().startsWith('<html') ||
+            (!res.ok && trimmed.length === 0)
           ) {
-            // HTML document detected! Fall back to local store
+            // HTML document or empty error detected! Fall back to local store
+            return handleLocalApi(urlString, modifiedInit);
+          }
+
+          // Verify body is parseable JSON before returning
+          try {
+            JSON.parse(trimmed);
+          } catch {
+            // Server did not return valid JSON! Fall back to local store
             return handleLocalApi(urlString, modifiedInit);
           }
         } catch {
-          // If peek fails, proceed with res
+          // If clone text read fails, fall back to local store
+          return handleLocalApi(urlString, modifiedInit);
         }
 
         // Cross-Sync: If login returned 401 on backend, check if this user exists in localStorage
@@ -139,18 +154,6 @@ export function installApiInterceptor() {
             // Ignore
           }
         }
-
-        // Final safety wrap on res.json to eliminate any possibility of JSON parse crashes
-        const originalJson = res.json.bind(res);
-        res.json = async () => {
-          try {
-            return await originalJson();
-          } catch (jsonErr) {
-            console.warn('Backend response was not valid JSON, falling back to local store:', jsonErr);
-            const fallbackRes = await handleLocalApi(urlString, modifiedInit);
-            return fallbackRes.json();
-          }
-        };
 
         return res;
       } catch {
