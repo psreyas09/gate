@@ -292,6 +292,42 @@ CREATE INDEX IF NOT EXISTS idx_lessons_topic        ON lessons(topic_id);
 
 ---
 
+## Session 8 — Production Hardening: Global Error Boundary, DOM Readiness & Unguarded State Safeguards
+
+### Context
+Addressed production diagnostic findings on `gatestudy.vercel.app` (high latency on `/api/overview` ~2.0s, blank screen / failure to select DOM elements during initial mounting, and client-side unhandled exception risk in production bundles).
+
+### Changes Made
+
+#### `client/src/components/ErrorBoundary.tsx` *(created)*
+- Class-based React Error Boundary with `getDerivedStateFromError` and `componentDidCatch`.
+- Renders an informative recovery UI displaying error summary and stack trace instead of a blank white page if rendering fails.
+- Features: "Reload Application" and "Clear Cache & Reset" action buttons.
+
+#### `client/src/main.tsx`
+- Wrapped root `<App />` inside `<ErrorBoundary>`.
+- Added early `window.addEventListener('error')` and `window.addEventListener('unhandledrejection')` global listeners for structured logging with filename, line, and column numbers.
+
+#### `client/src/index.html`
+- Added early error capture script in `<head>` to catch syntax or initialization issues before bundle loads.
+
+#### `client/src/App.tsx`
+- **DOM Readiness during API Latency:** Replaced empty `{currentTab === 'dashboard' && overview && <DashboardView />}` with `{currentTab === 'dashboard' && (overview ? <DashboardView ... /> : <ViewSkeleton />)}`.
+  - Guarantees immediate DOM availability and skeleton elements from frame 1 while `/api/overview` resolves over Turso cloud latency (~1.2s - 2.0s).
+- Wrapped tab views router inside `<ErrorBoundary fallbackTitle="Could not load view">` so that issues in any code-split view don't take down the entire application shell or navbar.
+
+#### `client/src/components/DashboardView.tsx`
+- Hardened all `overview` and `scopeDescriptions` accesses:
+  - Guarded against undefined `overview?.dueReviews ?? 0`.
+  - Added `activeScopeSafe` with fallback to `'qualify'` if invalid.
+  - Resolved potential temporal dead zone reference ordering for `scopeDescriptions`.
+
+#### `client/src/components/MockTestView.tsx`
+- Guarded `sessionData.questions` in running state: verifies questions array exists and is non-empty before indexing `sessionData.questions[currentQuestionIndex]`.
+- Provides a clean fallback return button to mock dashboard if session contains 0 questions.
+
+---
+
 ## Architecture Overview
 
 ```

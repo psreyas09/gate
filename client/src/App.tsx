@@ -6,6 +6,7 @@ import { DeviceSyncModal } from './components/DeviceSyncModal';
 import { OverviewData, User } from './types';
 import { Database, ShieldCheck, Smartphone, CheckCircle2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Code-split heavy views via React.lazy for optimized initial bundle
 const DashboardView = React.lazy(() => import('./components/DashboardView').then(m => ({ default: m.DashboardView })));
@@ -173,45 +174,51 @@ export function App() {
         ref={mainRef}
         className="flex-1 overflow-y-auto sm:overflow-visible sm:h-auto overscroll-y-contain max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-6 sm:pb-8"
       >
-        <Suspense fallback={<ViewSkeleton />}>
-          {currentTab === 'dashboard' && overview && (
-            <DashboardView
-              overview={overview}
-              onNavigate={handleTabChange}
-              onDrillWeakAreas={handleDrillWeakAreas}
-              currentUser={currentUser}
-              onOpenAuth={() => setIsAuthModalOpen(true)}
-            />
-          )}
+        <ErrorBoundary fallbackTitle="Could not load view">
+          <Suspense fallback={<ViewSkeleton />}>
+            {currentTab === 'dashboard' && (
+              overview ? (
+                <DashboardView
+                  overview={overview}
+                  onNavigate={handleTabChange}
+                  onDrillWeakAreas={handleDrillWeakAreas}
+                  currentUser={currentUser}
+                  onOpenAuth={() => setIsAuthModalOpen(true)}
+                />
+              ) : (
+                <ViewSkeleton />
+              )
+            )}
 
-          {currentTab === 'lessons' && (
-            <LessonsView onProgressUpdated={fetchOverview} />
-          )}
+            {currentTab === 'lessons' && (
+              <LessonsView onProgressUpdated={fetchOverview} />
+            )}
 
-          {currentTab === 'spaced_repetition' && (
-            <SpacedRepetitionView onReviewCompleted={fetchOverview} />
-          )}
+            {currentTab === 'spaced_repetition' && (
+              <SpacedRepetitionView onReviewCompleted={fetchOverview} />
+            )}
 
-          {currentTab === 'practice' && (
-            <PracticeView drillWeakOnly={drillWeakOnly} />
-          )}
+            {currentTab === 'practice' && (
+              <PracticeView drillWeakOnly={drillWeakOnly} />
+            )}
 
-          {currentTab === 'mock' && (
-            <MockTestView onMockCompleted={fetchOverview} />
-          )}
+            {currentTab === 'mock' && (
+              <MockTestView onMockCompleted={fetchOverview} />
+            )}
 
-          {currentTab === 'formulas' && (
-            <FormulaVaultView />
-          )}
+            {currentTab === 'formulas' && (
+              <FormulaVaultView />
+            )}
 
-          {currentTab === 'calendar' && (
-            <CalendarView onSettingsSaved={fetchOverview} />
-          )}
+            {currentTab === 'calendar' && (
+              <CalendarView onSettingsSaved={fetchOverview} />
+            )}
 
-          {currentTab === 'resources' && (
-            <ResourcesView />
-          )}
-        </Suspense>
+            {currentTab === 'resources' && (
+              <ResourcesView />
+            )}
+          </Suspense>
+        </ErrorBoundary>
       </main>
 
       {/* Mobile Bottom Navigation (docked firmly below main on mobile) */}

@@ -73,13 +73,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const tier2Pct = tier2.total_lessons > 0 ? Math.round((tier2.completed_lessons / tier2.total_lessons) * 100) : 0;
   const tier3Pct = tier3.total_lessons > 0 ? Math.round((tier3.completed_lessons / tier3.total_lessons) * 100) : 0;
 
-  const scopeInfo = overview?.scopeStats?.[activeScope] || {
-    total: activeScope === 'qualify' ? 24 : activeScope === 'scoring' ? 50 : 60,
-    completed: overview?.completedLessons || 0,
-    pct: 0
-  };
-  const readinessScore = scopeInfo.pct || (scopeInfo.total > 0 ? Math.round((scopeInfo.completed / scopeInfo.total) * 100) : 0);
-
   const scopeDescriptions = {
     qualify: {
       badge: 'Strategy: 35+ High-Yield Qualification (Pass Without Burnout)',
@@ -97,6 +90,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       gaugeSub: 'Based on All 60 GATE Curriculum Topics'
     }
   };
+
+  const activeScopeSafe: TargetScope = ['qualify', 'scoring', 'comprehensive'].includes(activeScope) ? activeScope : 'qualify';
+  const activeScopeDesc = scopeDescriptions[activeScopeSafe] || scopeDescriptions.qualify;
+  const scopeInfo = overview?.scopeStats?.[activeScopeSafe] || {
+    total: activeScopeSafe === 'qualify' ? 24 : activeScopeSafe === 'scoring' ? 50 : 60,
+    completed: overview?.completedLessons || 0,
+    pct: 0
+  };
+  const readinessScore = scopeInfo.pct || (scopeInfo.total > 0 ? Math.round((scopeInfo.completed / scopeInfo.total) * 100) : 0);
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -168,7 +170,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               GATE CSE 2027 Preparation
             </h1>
             <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-              {scopeDescriptions[activeScope].desc}
+              {activeScopeDesc.desc}
             </p>
 
             {/* Quick Metrics Badges */}
@@ -191,7 +193,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           {/* Readiness Gauge */}
           <div className="flex flex-col items-center justify-center p-4 sm:p-5 rounded-xl bg-slate-900/90 border border-slate-700/60 w-full md:w-auto md:min-w-[210px] text-center shadow-lg">
             <span className="text-[11px] sm:text-xs uppercase tracking-wider font-semibold text-slate-400">
-              {activeScope === 'qualify' ? 'Qualifying Readiness' : activeScope === 'scoring' ? 'Scoring Readiness' : 'Overall Mastery'}
+              {activeScopeSafe === 'qualify' ? 'Qualifying Readiness' : activeScopeSafe === 'scoring' ? 'Scoring Readiness' : 'Overall Mastery'}
             </span>
             <div className="my-1.5 sm:my-2 text-3xl sm:text-4xl font-extrabold bg-gradient-to-r from-cyan-400 to-emerald-400 bg-clip-text text-transparent">
               {readinessScore}%
@@ -203,7 +205,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               />
             </div>
             <span className="text-[10px] sm:text-[11px] text-slate-400">
-              {scopeDescriptions[activeScope].gaugeSub}
+              {activeScopeDesc.gaugeSub}
             </span>
           </div>
         </div>
@@ -274,7 +276,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <Brain className="w-4 h-4 shrink-0" /> Spaced Repetition
               </span>
               <span className="px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-indigo-500/20 text-indigo-300">
-                {overview.dueReviews} Due
+                {overview?.dueReviews ?? 0} Due
               </span>
             </div>
             <h3 className="text-sm sm:text-base font-semibold text-white mb-1">SM-2 Daily Review</h3>
@@ -286,7 +288,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             onClick={() => onNavigate('spaced_repetition')}
             className="mt-4 flex items-center justify-between w-full px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-medium text-xs transition-colors min-h-[44px]"
           >
-            <span>Review {overview.dueReviews} Cards</span>
+            <span>Review {overview?.dueReviews ?? 0} Cards</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>

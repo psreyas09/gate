@@ -248,7 +248,21 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
 
   // Active Running Mock
   if (testState === 'running' && sessionData) {
-    const currentQ = sessionData.questions[currentQuestionIndex];
+    if (!sessionData.questions || sessionData.questions.length === 0) {
+      return (
+        <div className="p-8 text-center text-slate-400 space-y-3">
+          <p>No questions available for this mock session.</p>
+          <button
+            onClick={() => setTestState('idle')}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold"
+          >
+            Return to Mock Tests
+          </button>
+        </div>
+      );
+    }
+    const currentQ = sessionData.questions[currentQuestionIndex] || sessionData.questions[0];
+    if (!currentQ) return null;
     const userAns = prevUserAnswer(currentQ.id);
 
     return (

@@ -10,6 +10,14 @@
     <meta name="description" content="GATE CSE 2027 High-Yield Strategy &amp; Practice Platform" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <title>GATE CSE 2027 — High-Yield Prep Platform</title>
+    <script>
+      window.addEventListener('error', function(e) {
+        console.error('[GATE Global Catch]', e.error || e.message, e.filename, e.lineno);
+      });
+      window.addEventListener('unhandledrejection', function(e) {
+        console.error('[GATE Global Rejection]', e.reason);
+      });
+    </script>
   </head>
   <body class="bg-slate-950 text-slate-100 antialiased selection:bg-cyan-500/30 selection:text-cyan-200">
     <div id="root"></div>
