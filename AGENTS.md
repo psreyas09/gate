@@ -393,6 +393,39 @@ User reported two issues:
 
 ---
 
+## Session 11 — Stale SW Cache Busting & MIME Type Error Resolution
+
+### Context
+Browser threw:
+`Failed to load module script: Expected a JavaScript-or-Wasm module script but the server responded with a MIME type of "text/html". Strict MIME type checking is enforced for module scripts per HTML spec.`
+
+### Root Cause
+1. **Service Worker Cached `index.html`:** In `client/public/sw.js`, `STATIC_ASSETS` included `/` and `/index.html`. The Service Worker served the cached, stale `index.html` referencing old chunk hashes (e.g. `index-D9ICbHhS.js`).
+2. **Vercel Catch-All Rewrite:** On Vercel, requests to deleted/replaced content-hashed chunks under `/assets/` were captured by the `/(.*)` catch-all rule and rewritten to `/index.html` with `Content-Type: text/html`.
+3. **MIME Type Exception:** The browser attempted to execute HTML as JavaScript module script, triggering strict MIME checking error.
+
+### Changes Made
+
+#### `vercel.json`
+- Scoped rewrite to ignore `/assets/`, `favicon.svg`, `manifest.webmanifest`, and `sw.js`:
+  `"source": "/((?!assets/|favicon\\.svg|manifest\\.webmanifest|sw\\.js).*)"`
+- Missing chunk requests now return 404 instead of HTML fallback.
+
+#### `client/public/sw.js` *(version bump: gate-study-v3)*
+- Removed `/` and `/index.html` from `STATIC_ASSETS`.
+- Configured **Network-First** strategy for navigation (`request.mode === 'navigate'`).
+- Added MIME type verification for `/assets/`: intercepts text/html responses and replaces them with 404 responses so Vite can detect chunk mismatches.
+- Aggressively purges all old caches on `activate`.
+
+#### `client/src/main.tsx`
+- Added `window.addEventListener('vite:preloadError')` listener to automatically reload the page when a stale chunk fails to load after a deployment.
+
+#### `client/index.html`
+- Added global self-healing script: detects `Failed to load module script` or `text/html` errors, automatically unregisters stale Service Workers, clears caches, and reloads to fetch the clean latest deployment.
+- Added `reg.update()` to check for fresh Service Worker on each page load.
+
+---
+
 ## Architecture Overview
 
 ```

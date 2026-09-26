@@ -18,6 +18,12 @@ window.addEventListener('error', (event) => {
   });
 });
 
+// Auto-reload on Vite dynamic chunk preload failure (e.g. after a new production deployment)
+window.addEventListener('vite:preloadError', (event) => {
+  console.warn('[Vite Preload Error]: Stale chunk detected after deployment. Reloading page...', event);
+  window.location.reload();
+});
+
 window.addEventListener('unhandledrejection', (event) => {
   console.error('[GATE Unhandled Promise Rejection]:', event.reason);
 });

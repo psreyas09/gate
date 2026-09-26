@@ -12,7 +12,7 @@
       "destination": "/api"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!assets/|favicon\\.svg|manifest\\.webmanifest|sw\\.js).*)",
       "destination": "/index.html"
     }
   ]
