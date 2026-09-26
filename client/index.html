@@ -11,11 +11,15 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <title>GATE CSE 2027 — High-Yield Prep Platform</title>
     <script>
+      // Capture phase error listener to detect <script> and module load failures
       window.addEventListener('error', function(e) {
-        console.error('[GATE Global Catch]', e.error || e.message, e.filename, e.lineno);
+        var target = e.target || e.srcElement;
+        var isScriptOrLink = target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK');
         var msg = String(e.message || (e.error && e.error.message) || '');
-        if (msg.indexOf('Failed to load module script') !== -1 || msg.indexOf('text/html') !== -1) {
-          console.warn('[GATE Self-Heal] Stale Service Worker or cache detected. Purging and refreshing...');
+        var isMimeOrModule = msg.indexOf('Failed to load module script') !== -1 || msg.indexOf('text/html') !== -1;
+
+        if (isScriptOrLink || isMimeOrModule) {
+          console.warn('[GATE Auto-Recovery] Stale build assets detected. Unregistering SW and clearing caches...');
           if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(function(regs) {
               for (var i = 0; i < regs.length; i++) regs[i].unregister();
@@ -26,9 +30,15 @@
               for (var i = 0; i < keys.length; i++) caches.delete(keys[i]);
             });
           }
-          setTimeout(function() { window.location.reload(); }, 250);
+          // Avoid infinite refresh loop by checking session timestamp
+          var lastReload = sessionStorage.getItem('gate_last_self_heal');
+          if (!lastReload || Date.now() - Number(lastReload) > 8000) {
+            sessionStorage.setItem('gate_last_self_heal', String(Date.now()));
+            setTimeout(function() { window.location.reload(); }, 200);
+          }
         }
-      });
+      }, true);
+
       window.addEventListener('unhandledrejection', function(e) {
         console.error('[GATE Global Rejection]', e.reason);
       });

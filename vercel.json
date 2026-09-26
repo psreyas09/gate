@@ -2,18 +2,12 @@
   "installCommand": "npm install && npm --prefix client install",
   "buildCommand": "npm --prefix client run build",
   "outputDirectory": "client/dist",
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api"
-    },
-    {
-      "source": "/api",
-      "destination": "/api"
-    },
-    {
-      "source": "/((?!assets/|favicon\\.svg|manifest\\.webmanifest|sw\\.js).*)",
-      "destination": "/index.html"
-    }
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api" },
+    { "src": "/api", "dest": "/api" },
+    { "handle": "filesystem" },
+    { "src": "/assets/(.*)", "status": 404 },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
+

@@ -471,6 +471,39 @@ User requested significant latency reduction and speed improvements across the e
 
 ---
 
+## Session 13 — Vercel Asset 404 Enforcing & Capture-Phase Script Error Self-Healing
+
+### Context
+Browser threw MIME error `Expected a JavaScript-or-Wasm module script but the server responded with a MIME type of "text/html"`. Diagnostic testing on live CDN showed that requesting missing chunk paths like `/assets/nonexistent.js` returned HTTP `200 text/html` (`index.html`) instead of HTTP `404 Not Found`.
+
+### Root Cause
+1. **Vercel Rewrites Ignored Negative Lookahead:** In `vercel.json`, `rewrites` with negative lookahead (`/((?!assets/).*)`) were ignored or parsed as catch-all by Vercel's router when a file did not exist on disk.
+2. **Missing Script Errors Don't Bubble:** Browser `<script>` element load failures do NOT bubble to `window.onerror` in the bubble phase, meaning standard window error listeners never fired.
+
+### Changes Made
+
+#### `vercel.json`
+- Replaced `rewrites` with explicit Vercel `routes`:
+  ```json
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api" },
+    { "src": "/api", "dest": "/api" },
+    { "handle": "filesystem" },
+    { "src": "/assets/(.*)", "status": 404 },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
+  ```
+- Uses `"handle": "filesystem"` to serve existing production build assets directly.
+- Explicitly enforces HTTP `404` for missing `/assets/*` requests, preventing HTML fallback for JS chunks.
+
+#### `client/public/sw.js` *(version bump: gate-study-v4)*
+- Network-only handler for `/assets/`: returns 404 text response if network fails or if HTML is returned.
+
+#### `client/index.html`
+- Added **capture-phase** error listener (`useCapture: true`) to detect `<script>` resource load failures, unregister stale service workers, purge cache storage, and trigger automatic reload.
+
+---
+
 ## Architecture Overview
 
 ```

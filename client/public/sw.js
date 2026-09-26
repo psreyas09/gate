@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gate-study-v3';
+const CACHE_NAME = 'gate-study-v4';
 
 // Only cache true static, non-HTML assets
 const STATIC_ASSETS = [
@@ -48,12 +48,12 @@ self.addEventListener('fetch', (event) => {
   }
 
   // 3. JS & CSS Chunk assets in /assets/:
-  // Verify response is NOT HTML (e.g. server fallback for missing chunk)
+  // Pure network-only with MIME check. Never serve stale cached chunks or HTML fallback.
   if (url.pathname.startsWith('/assets/')) {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const contentType = response.headers.get('content-type') || '';
+          const contentType = (response.headers.get('content-type') || '').toLowerCase();
           if (contentType.includes('text/html')) {
             // Server returned HTML fallback for missing asset. Return 404 so Vite preload handler can reload.
             return new Response('Asset not found', {
@@ -64,7 +64,13 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         })
-        .catch(() => caches.match(request))
+        .catch(() => {
+          return new Response('Asset fetch failed', {
+            status: 404,
+            statusText: 'Not Found',
+            headers: { 'Content-Type': 'text/plain' }
+          });
+        })
     );
     return;
   }
