@@ -489,18 +489,27 @@ Browser threw MIME error `Expected a JavaScript-or-Wasm module script but the se
     { "src": "/api/(.*)", "dest": "/api" },
     { "src": "/api", "dest": "/api" },
     { "handle": "filesystem" },
-    { "src": "/assets/(.*)", "status": 404 },
+    { "src": "/assets/(.*)", "status": 404, "dest": "/404.html" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
   ```
 - Uses `"handle": "filesystem"` to serve existing production build assets directly.
-- Explicitly enforces HTTP `404` for missing `/assets/*` requests, preventing HTML fallback for JS chunks.
+- Explicitly enforces HTTP `404` for missing `/assets/*` requests via dedicated `client/public/404.html` destination, preventing HTML fallback for JS chunks.
+
+#### `client/public/404.html` *(created)*
+- Lightweight static 404 document served by Vercel for non-existent static assets.
 
 #### `client/public/sw.js` *(version bump: gate-study-v4)*
 - Network-only handler for `/assets/`: returns 404 text response if network fails or if HTML is returned.
 
 #### `client/index.html`
 - Added **capture-phase** error listener (`useCapture: true`) to detect `<script>` resource load failures, unregister stale service workers, purge cache storage, and trigger automatic reload.
+
+#### Live Verification Results (on `https://gatestudy.vercel.app`)
+- `GET /` → `200 text/html`
+- `GET /dashboard` → `200 text/html`
+- `GET /assets/index-CfandDHq.js` → `200 application/javascript`
+- `GET /assets/old-chunk-deleted.js` → **`404 text/html`** (verified: no longer falls back to 200 OK)
 
 ---
 
