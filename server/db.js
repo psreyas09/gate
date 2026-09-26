@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS topics (
   order_index INTEGER NOT NULL,
   is_high_yield INTEGER NOT NULL DEFAULT 0,
   estimated_study_mins INTEGER DEFAULT 25,
+  scope TEXT DEFAULT 'scoring',
   FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
 );
 
@@ -230,6 +231,14 @@ CREATE INDEX IF NOT EXISTS idx_mock_user ON mock_sessions(user_id);
 
 async function initSchema() {
   await client.executeMultiple(SCHEMA_SQL);
+  try {
+    await client.execute("ALTER TABLE topics ADD COLUMN scope TEXT DEFAULT 'scoring'");
+  } catch (e) {
+    // Column already exists, safe to ignore
+  }
+  try {
+    await client.execute("CREATE INDEX IF NOT EXISTS idx_topics_scope ON topics(scope)");
+  } catch (e) {}
 }
 
 module.exports = {

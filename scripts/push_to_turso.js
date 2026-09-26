@@ -63,6 +63,9 @@ async function main() {
   const schemaMatch = dbFileContent.match(/const SCHEMA_SQL = `([\s\S]*?)`;/);
   if (schemaMatch) {
     await tursoClient.executeMultiple(schemaMatch[1]);
+    try {
+      await tursoClient.execute("ALTER TABLE topics ADD COLUMN scope TEXT DEFAULT 'scoring'");
+    } catch (e) {}
     console.log('✓ Schema applied successfully on Turso!');
   }
 

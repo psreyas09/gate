@@ -1454,8 +1454,11 @@ A greedy algorithm makes the locally optimal choice at each step hoping it leads
   }
 ];
 
+const { MORE_LESSONS } = require('./more_lessons');
+const combinedLessons = [...allLessons, ...MORE_LESSONS];
+
 async function seedAllLessons() {
-  const stmts = allLessons.map(l => ({
+  const stmts = combinedLessons.map(l => ({
     sql: `INSERT INTO lessons (id, topic_id, title, content_markdown, quick_check_questions, citation)
           VALUES (?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
@@ -1467,8 +1470,9 @@ async function seedAllLessons() {
   }));
   if (stmts.length > 0) {
     await db.batch(stmts);
-    console.log(`Successfully seeded ${allLessons.length} lessons with complete quick-checks!`);
+    console.log(`Successfully seeded ${combinedLessons.length} lessons with complete quick-checks!`);
   }
 }
 
-module.exports = { allLessons, seedAllLessons };
+module.exports = { allLessons: combinedLessons, seedAllLessons };
+

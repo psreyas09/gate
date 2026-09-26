@@ -182,6 +182,67 @@ CREATE INDEX IF NOT EXISTS idx_lessons_topic        ON lessons(topic_id);
 
 ---
 
+## Session 6 — Dynamic Study Scope & Expanded Curriculum (60 Topics)
+
+### Changes Made
+
+#### Curriculum Expansion & Scope Hierarchy
+- Expanded study material from 39 topics to **60 comprehensive GATE CSE topics** across all 11 subjects (54 in-depth + 6 inline lessons = 60 full lessons, 131 practice questions, 52 flashcards).
+- Introduced a 3-tier preparation scope system designed to adapt content volume and focus based on user goals:
+  - **🎯 Qualify Only (~35 Marks):** 24 high-yield core topics across Tier 1 (Aptitude, Engg Math, DBMS, Digital Logic, C/DS) and foundational systems. Focuses on passing without burnout.
+  - **🚀 Rank Booster (50–65 Marks):** 50 topics adding full Tier 1 & 2 subjects (Computer Networks, COA, full OS, algorithm fundamentals).
+  - **🏆 Comprehensive (75–100 Marks):** All 60 topics (complete GATE syllabus including Compiler Design, Dynamic Programming, Turing Machines & Decidability, Disk Scheduling, IEEE 754, etc.).
+
+#### `server/more_lessons.js` *(created)*
+- Added 21 new in-depth topics with complete metadata, citations, markdown lesson bodies, 3 quick-checks each, practice questions, and SM-2 flashcards.
+- Added scope attributes (`qualify`, `scoring`, `comprehensive`).
+
+#### `server/db.js`
+- Added `scope TEXT DEFAULT 'scoring'` column to `topics` schema.
+- Added automated migration in `initSchema()`: executes `ALTER TABLE topics ADD COLUMN scope TEXT DEFAULT 'scoring'` safely, followed by `CREATE INDEX IF NOT EXISTS idx_topics_scope ON topics(scope)`.
+
+#### `server/seed.js` & `server/seed_all_lessons.js`
+- Tagged all base topics with appropriate preparation scopes (`qualify`, `scoring`, `comprehensive`).
+- Merged `MORE_TOPICS`, `MORE_LESSONS`, `MORE_QUESTIONS`, and `MORE_FLASHCARDS`.
+- Updated upsert queries with `ON CONFLICT DO UPDATE` to keep topics, lessons, questions, and flashcards synchronized.
+- Defaulted `target_scope` setting to `'qualify'`.
+
+#### `server/app.js`
+- `GET /api/overview`: Parallelized query returns `scopeStats` (`qualify`, `scoring`, `comprehensive` total topics, completed topics, and completion percentage) and active `target_scope`.
+- `GET /api/topics`: Supports `?scope=qualify|scoring|comprehensive` query filtering.
+- `POST /api/calendar`: Persists `target_scope` alongside study calendar settings.
+
+#### `scripts/push_to_turso.js`
+- Added automatic `ALTER TABLE topics ADD COLUMN scope TEXT DEFAULT 'scoring'` step for Turso cloud deployments.
+
+#### `client/src/data/curriculumSeed.json`
+- Regenerated with complete 11 subjects, 60 topics with scopes, 60 lessons, 131 questions, and 52 flashcards.
+
+#### `client/src/types.ts`
+- Added `TargetScope = 'qualify' | 'scoring' | 'comprehensive'`.
+- Added `scope?: TargetScope` to `Topic`.
+- Added `target_scope?: TargetScope` and `scopeStats` to `OverviewData`.
+
+#### `client/src/services/localApi.ts`
+- Added support for `target_scope`, `scopeStats`, and scope filtering to local fallback mock handlers (`/api/overview`, `/api/topics`, `/api/calendar`).
+
+#### `client/src/components/CalendarView.tsx`
+- Added 3 interactive strategy cards (`🎯 Qualify Only`, `🚀 Rank Booster`, `🏆 Comprehensive`) with target cutoff auto-synchronization (35 / 55 / 75).
+
+#### `client/src/components/DashboardView.tsx`
+- Added interactive strategy switcher pills on the hero banner.
+- Dynamic readiness gauge and mastery indicators adapt in real time to the selected preparation scope (24, 50, or 60 topics).
+
+#### `client/src/components/LessonsView.tsx`
+- Added Syllabus Scope selector bar (`Qualify Only (24)`, `Rank Booster (50)`, `All Syllabus (60)`).
+- Added `filterByScope` toggle with active topic count indicators.
+- Added scope badges on topic cards and fallback guidance for out-of-scope subjects.
+
+#### `client/src/components/PracticeView.tsx`
+- Added `🎯 High-Yield Only` filter toggle alongside `GATE PYQs Only`.
+
+---
+
 ## Architecture Overview
 
 ```
@@ -194,6 +255,7 @@ server/
   auth.js             ← HMAC-JWT middleware + scrypt password hashing
   seed.js             ← Subjects, topics, inline lessons seed (called once at startup)
   seed_all_lessons.js ← 33 detailed lesson objects (called by seed.js)
+  more_lessons.js     ← 21 expanded lessons & topics with scope tagging
   backup.js           ← Import/export backup utilities
 scripts/
   push_to_turso.js    ← Bulk sync local SQLite → Turso cloud
@@ -217,4 +279,4 @@ Run with server on port 3001:
 node server/index.js &
 node test_suite.js
 ```
-**62 tests, all passing** as of commit `6c8f1c5`.
+**62 tests, all passing** (Curriculum, Tiers, Topics, Lessons & Quick-Checks, SM-2 Engine, Question Types, Weak Areas, Mock Exam, Study Calendar, Backup & Restore, Auth & Progress Isolation).

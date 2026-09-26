@@ -27,6 +27,7 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
   const [selectedTier, setSelectedTier] = useState<string>('');
   const [selectedType, setSelectedType] = useState<string>('');
   const [pyqOnly, setPyqOnly] = useState<boolean>(false);
+  const [highYieldOnly, setHighYieldOnly] = useState<boolean>(false);
   const [interleaving, setInterleaving] = useState<boolean>(false);
   const [loading, setLoading] = useState(false);
 
@@ -52,6 +53,7 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
       if (selectedTier) params.set('tier', selectedTier);
       if (selectedType) params.set('type', selectedType);
       if (pyqOnly) params.set('is_pyq', '1');
+      if (highYieldOnly) params.set('is_high_yield', '1');
       if (interleaving) params.set('interleaving', 'true');
       url += params.toString();
     }
@@ -67,7 +69,7 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
 
   useEffect(() => {
     loadQuestions();
-  }, [selectedSubject, selectedTier, selectedType, pyqOnly, interleaving, drillWeakOnly]);
+  }, [selectedSubject, selectedTier, selectedType, pyqOnly, highYieldOnly, interleaving, drillWeakOnly]);
 
   const handleSelectOption = (q: Question, optionChar: string) => {
     if (attemptResults[q.id]) return; // already submitted
@@ -192,6 +194,18 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
             }`}
           >
             GATE PYQs Only
+          </button>
+
+          {/* High-Yield Qualify Only Toggle */}
+          <button
+            onClick={() => setHighYieldOnly(!highYieldOnly)}
+            className={`w-full sm:w-auto px-3.5 py-2 rounded-lg border font-medium transition-all min-h-[38px] flex items-center justify-center ${
+              highYieldOnly
+                ? 'bg-emerald-600/30 border-emerald-500 text-emerald-200 font-semibold'
+                : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            🎯 High-Yield Only
           </button>
         </div>
       </div>

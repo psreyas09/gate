@@ -10,6 +10,8 @@ import {
   AlertCircle
 } from 'lucide-react';
 
+import { TargetScope } from '../types';
+
 interface CalendarViewProps {
   onSettingsSaved: () => void;
 }
@@ -17,6 +19,7 @@ interface CalendarViewProps {
 export const CalendarView: React.FC<CalendarViewProps> = ({ onSettingsSaved }) => {
   const [targetExamDate, setTargetExamDate] = useState('2027-02-06');
   const [targetCutoff, setTargetCutoff] = useState('35.0');
+  const [targetScope, setTargetScope] = useState<TargetScope>('qualify');
   const [currentMode, setCurrentMode] = useState<'full' | 'light'>('full');
   const [busyPeriods, setBusyPeriods] = useState<Array<{ start: string; end: string; label: string }>>([]);
   const [saving, setSaving] = useState(false);
@@ -35,6 +38,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSettingsSaved }) =
         const config = data.settings || data;
         if (config.target_exam_date) setTargetExamDate(config.target_exam_date);
         if (config.target_cutoff) setTargetCutoff(String(config.target_cutoff));
+        if (config.target_scope) setTargetScope(config.target_scope);
         if (config.current_mode) setCurrentMode(config.current_mode);
         if (Array.isArray(config.busy_periods)) {
           setBusyPeriods(config.busy_periods);
@@ -47,6 +51,23 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSettingsSaved }) =
       .catch(console.error);
   }, []);
 
+  const handleScopeSelect = (scope: TargetScope) => {
+    setTargetScope(scope);
+    if (scope === 'qualify') setTargetCutoff('35.0');
+    else if (scope === 'scoring') setTargetCutoff('55.0');
+    else if (scope === 'comprehensive') setTargetCutoff('75.0');
+  };
+
+  const handleCutoffChange = (value: string) => {
+    setTargetCutoff(value);
+    const num = parseFloat(value);
+    if (!isNaN(num)) {
+      if (num < 45) setTargetScope('qualify');
+      else if (num < 68) setTargetScope('scoring');
+      else setTargetScope('comprehensive');
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setSaveSuccess(false);
@@ -57,10 +78,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSettingsSaved }) =
         body: JSON.stringify({
           target_exam_date: targetExamDate,
           target_cutoff: targetCutoff,
+          target_scope: targetScope,
           current_mode: currentMode,
           busy_periods: busyPeriods,
         }),
       });
+      localStorage.setItem('gate_study_scope', targetScope);
       setSaving(false);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000);
@@ -124,10 +147,95 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSettingsSaved }) =
               type="number"
               step="0.5"
               value={targetCutoff}
-              onChange={e => setTargetCutoff(e.target.value)}
+              onChange={e => handleCutoffChange(e.target.value)}
               className="w-full px-3 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 focus:outline-none focus:border-cyan-400 font-mono min-h-[42px]"
             />
-            <span className="text-[11px] text-slate-400">Default: 35.0 (safe buffer for qualifying)</span>
+            <span className="text-[11px] text-slate-400">
+              {parseFloat(targetCutoff) <= 40 ? '🎯 Qualify Only Scope suggested' : parseFloat(targetCutoff) <= 65 ? '🚀 Rank Booster Scope suggested' : '🏆 Comprehensive Scope suggested'}
+            </span>
+          </div>
+        </div>
+
+        {/* Target Preparation Strategy & Scope Selector */}
+        <div className="pt-2 border-t border-slate-800 space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="text-slate-200 font-semibold text-xs flex items-center gap-1.5">
+              <span>Target Preparation Strategy &amp; Material Scope:</span>
+            </label>
+            <span className="text-[11px] font-mono text-cyan-400 font-semibold">
+              {targetScope === 'qualify' ? '24 High-Yield Topics' : targetScope === 'scoring' ? '50 Core Topics' : 'All 60 Topics (Full Syllabus)'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* Qualify Only */}
+            <div
+              onClick={() => handleScopeSelect('qualify')}
+              className={`p-3.5 rounded-xl border cursor-pointer transition-all touch-manipulation ${
+                targetScope === 'qualify'
+                  ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-200 shadow-md ring-1 ring-emerald-500/30'
+                  : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-bold text-xs text-white flex items-center gap-1.5">
+                  🎯 Qualify Only (35+ Marks)
+                </span>
+                {targetScope === 'qualify' && <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />}
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed mb-2.5">
+                Most important things only. High-yield Tier 1 &amp; Tier 2 essentials to comfortably clear the GATE cutoff without burnout.
+              </p>
+              <div className="inline-block px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/25 text-[10px] font-semibold text-emerald-300">
+                24 Core Topics • ~1 hr/day
+              </div>
+            </div>
+
+            {/* Rank Booster */}
+            <div
+              onClick={() => handleScopeSelect('scoring')}
+              className={`p-3.5 rounded-xl border cursor-pointer transition-all touch-manipulation ${
+                targetScope === 'scoring'
+                  ? 'bg-cyan-500/15 border-cyan-500/50 text-cyan-200 shadow-md ring-1 ring-cyan-500/30'
+                  : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-bold text-xs text-white flex items-center gap-1.5">
+                  🚀 Rank Booster (50-65 Marks)
+                </span>
+                {targetScope === 'scoring' && <CheckCircle className="w-4 h-4 text-cyan-400 shrink-0" />}
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed mb-2.5">
+                Core fundamentals across all Tier 1 and Tier 2 subjects. Secure admission to top state colleges &amp; PSU cutoffs.
+              </p>
+              <div className="inline-block px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/25 text-[10px] font-semibold text-cyan-300">
+                50 Topics • ~2-3 hrs/day
+              </div>
+            </div>
+
+            {/* Comprehensive */}
+            <div
+              onClick={() => handleScopeSelect('comprehensive')}
+              className={`p-3.5 rounded-xl border cursor-pointer transition-all touch-manipulation ${
+                targetScope === 'comprehensive'
+                  ? 'bg-indigo-500/15 border-indigo-500/50 text-indigo-200 shadow-md ring-1 ring-indigo-500/30'
+                  : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-bold text-xs text-white flex items-center gap-1.5">
+                  🏆 Comprehensive (75-100)
+                </span>
+                {targetScope === 'comprehensive' && <CheckCircle className="w-4 h-4 text-indigo-400 shrink-0" />}
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed mb-2.5">
+                Full syllabus including advanced Compiler Design, Dynamic Programming, and edge cases for AIR &lt; 500 &amp; top IITs.
+              </p>
+              <div className="inline-block px-2 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/25 text-[10px] font-semibold text-indigo-300">
+                All 60 Topics • ~4+ hrs/day
+              </div>
+            </div>
           </div>
         </div>
 

@@ -359,6 +359,7 @@ app.get('/api/overview', async (req, res) => {
       mockSummaryRaw,
       recentActivityRows,
       settingsRows,
+      scopeCountsRaw,
     ] = await Promise.all([
       db.prepare('SELECT COUNT(*) as c FROM lessons').get(),
       db.prepare("SELECT COUNT(*) as c FROM user_lesson_progress WHERE status = 'completed' AND user_id = ?").get(req.userId),
@@ -411,6 +412,15 @@ app.get('/api/overview', async (req, res) => {
         LIMIT 30
       `).all(req.userId),
       db.prepare('SELECT * FROM study_settings WHERE user_id = ?').all(req.userId),
+      db.prepare(`
+        SELECT COALESCE(t.scope, 'scoring') as scope,
+               COUNT(DISTINCT t.id) as total_topics,
+               COUNT(DISTINCT CASE WHEN p.status = 'completed' THEN t.id END) as completed_topics
+        FROM topics t
+        LEFT JOIN lessons l ON t.id = l.topic_id
+        LEFT JOIN user_lesson_progress p ON l.id = p.lesson_id AND p.user_id = ?
+        GROUP BY t.scope
+      `).all(req.userId),
     ]);
 
     const totalLessons = totalLessonsRow ? totalLessonsRow.c : 0;
@@ -437,6 +447,33 @@ app.get('/api/overview', async (req, res) => {
 
     const settings = {};
     (settingsRows || []).forEach(s => { settings[s.key] = s.value; });
+    if (!settings.target_scope) settings.target_scope = 'qualify';
+
+    const scopeCounts = { qualify: { total: 0, completed: 0 }, scoring: { total: 0, completed: 0 }, comprehensive: { total: 0, completed: 0 } };
+    (scopeCountsRaw || []).forEach(row => {
+      if (scopeCounts[row.scope]) {
+        scopeCounts[row.scope].total = Number(row.total_topics);
+        scopeCounts[row.scope].completed = Number(row.completed_topics);
+      }
+    });
+
+    const scopeStats = {
+      qualify: {
+        total: scopeCounts.qualify.total,
+        completed: scopeCounts.qualify.completed,
+        pct: scopeCounts.qualify.total > 0 ? Math.round((scopeCounts.qualify.completed / scopeCounts.qualify.total) * 100) : 0
+      },
+      scoring: {
+        total: scopeCounts.qualify.total + scopeCounts.scoring.total,
+        completed: scopeCounts.qualify.completed + scopeCounts.scoring.completed,
+        pct: (scopeCounts.qualify.total + scopeCounts.scoring.total) > 0 ? Math.round(((scopeCounts.qualify.completed + scopeCounts.scoring.completed) / (scopeCounts.qualify.total + scopeCounts.scoring.total)) * 100) : 0
+      },
+      comprehensive: {
+        total: scopeCounts.qualify.total + scopeCounts.scoring.total + scopeCounts.comprehensive.total,
+        completed: scopeCounts.qualify.completed + scopeCounts.scoring.completed + scopeCounts.comprehensive.completed,
+        pct: (scopeCounts.qualify.total + scopeCounts.scoring.total + scopeCounts.comprehensive.total) > 0 ? Math.round(((scopeCounts.qualify.completed + scopeCounts.scoring.completed + scopeCounts.comprehensive.completed) / (scopeCounts.qualify.total + scopeCounts.scoring.total + scopeCounts.comprehensive.total)) * 100) : 0
+      }
+    };
 
     res.json({
       totalLessons,
@@ -450,7 +487,8 @@ app.get('/api/overview', async (req, res) => {
       overallAccuracy: overallStats.total_attempts > 0 ? Math.round((overallStats.total_correct / overallStats.total_attempts) * 100) : 0,
       mockSummary,
       streak,
-      settings
+      settings,
+      scopeStats
     });
   } catch (err) {
     console.error('Error in /api/overview:', err);
@@ -485,7 +523,7 @@ app.get('/api/subjects', async (req, res) => {
 // 3. Topics with Lessons and Progress
 app.get('/api/topics', async (req, res) => {
   try {
-    const { subject_id } = req.query;
+    const { subject_id, scope } = req.query;
     let query = `
       SELECT t.*, s.name as subject_name, s.tier as subject_tier, s.reference_book,
              l.id as lesson_id, l.title as lesson_title, l.citation as lesson_citation,
@@ -499,9 +537,18 @@ app.get('/api/topics', async (req, res) => {
       LEFT JOIN user_lesson_progress p ON l.id = p.lesson_id AND p.user_id = ?
     `;
     const params = [req.userId];
+    const whereClauses = [];
     if (subject_id) {
-      query += ' WHERE t.subject_id = ?';
+      whereClauses.push('t.subject_id = ?');
       params.push(subject_id);
+    }
+    if (scope === 'qualify') {
+      whereClauses.push("t.scope = 'qualify'");
+    } else if (scope === 'scoring') {
+      whereClauses.push("(t.scope = 'qualify' OR t.scope = 'scoring')");
+    }
+    if (whereClauses.length > 0) {
+      query += ' WHERE ' + whereClauses.join(' AND ');
     }
     query += ' ORDER BY s.tier ASC, t.is_high_yield DESC, t.order_index ASC';
 
@@ -1110,7 +1157,7 @@ app.get('/api/calendar', async (req, res) => {
 
 app.post('/api/calendar', async (req, res) => {
   try {
-    const { target_exam_date, target_cutoff, current_mode, busy_periods } = req.body;
+    const { target_exam_date, target_cutoff, current_mode, busy_periods, target_scope } = req.body;
     const stmts = [];
 
     if (target_exam_date) {
@@ -1123,6 +1170,12 @@ app.post('/api/calendar', async (req, res) => {
       stmts.push({
         sql: 'INSERT INTO study_settings (key, user_id, value) VALUES (?, ?, ?) ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value',
         args: ['target_cutoff', req.userId, String(target_cutoff)]
+      });
+    }
+    if (target_scope) {
+      stmts.push({
+        sql: 'INSERT INTO study_settings (key, user_id, value) VALUES (?, ?, ?) ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value',
+        args: ['target_scope', req.userId, String(target_scope)]
       });
     }
     if (current_mode) {

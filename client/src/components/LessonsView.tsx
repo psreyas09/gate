@@ -9,7 +9,7 @@ import {
   XCircle,
   Sparkles
 } from 'lucide-react';
-import { Subject, Topic, Lesson, Tier } from '../types';
+import { Subject, Topic, Lesson, Tier, TargetScope } from '../types';
 import { MathText } from './MathText';
 
 interface LessonsViewProps {
@@ -26,13 +26,28 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
   const [loading, setLoading] = useState(false);
   const [mobileViewMode, setMobileViewMode] = useState<'topics' | 'lesson'>('topics');
 
+  // Preparation scope state
+  const [activeScope, setActiveScope] = useState<TargetScope>('qualify');
+  const [filterByScope, setFilterByScope] = useState<boolean>(true);
+
   // Quick check answers state: { [qc_id]: selectedOptionIndex }
   const [quickCheckAnswers, setQuickCheckAnswers] = useState<Record<string, number>>({});
   const [submittingCheck, setSubmittingCheck] = useState(false);
   const [checkFeedback, setCheckFeedback] = useState<any>(null);
 
-  // 1. Fetch subjects on mount
+  // 1. Fetch subjects & calendar scope on mount
   useEffect(() => {
+    fetch('/api/calendar')
+      .then(res => res.json())
+      .then(data => {
+        if (data?.target_scope) setActiveScope(data.target_scope);
+        else if (data?.settings?.target_scope) setActiveScope(data.settings.target_scope);
+      })
+      .catch(() => {
+        const saved = localStorage.getItem('gate_study_scope') as TargetScope;
+        if (saved) setActiveScope(saved);
+      });
+
     fetch('/api/subjects')
       .then(res => res.json())
       .then((data: Subject[]) => {
@@ -130,6 +145,19 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
     }
   };
 
+  const handleScopeChange = async (scope: TargetScope) => {
+    setActiveScope(scope);
+    localStorage.setItem('gate_study_scope', scope);
+    try {
+      await fetch('/api/calendar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target_scope: scope })
+      });
+      onProgressUpdated();
+    } catch {}
+  };
+
   const handleTierSwitch = (tier: Tier) => {
     setActiveTier(tier);
     const sub = subjects.find(s => s.tier === tier);
@@ -140,6 +168,14 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
   };
 
   const filteredSubjects = subjects.filter(s => s.tier === activeTier);
+
+  const visibleTopics = topics.filter(t => {
+    if (!filterByScope) return true;
+    const topicScope = t.scope || 'scoring';
+    if (activeScope === 'qualify') return topicScope === 'qualify';
+    if (activeScope === 'scoring') return topicScope === 'qualify' || topicScope === 'scoring';
+    return true;
+  });
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -186,6 +222,57 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
         </div>
       </div>
 
+      {/* Target Preparation Scope Selector Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 rounded-xl bg-slate-900/90 border border-slate-800 text-xs shadow-sm">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-slate-400 font-semibold flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> Syllabus Scope:
+          </span>
+          <div className="inline-flex p-0.5 rounded-lg bg-slate-950 border border-slate-800 gap-0.5">
+            <button
+              onClick={() => handleScopeChange('qualify')}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all touch-manipulation ${
+                activeScope === 'qualify'
+                  ? 'bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              🎯 Qualify Only (24)
+            </button>
+            <button
+              onClick={() => handleScopeChange('scoring')}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all touch-manipulation ${
+                activeScope === 'scoring'
+                  ? 'bg-cyan-500/25 border border-cyan-500/40 text-cyan-300 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              🚀 Rank Booster (50)
+            </button>
+            <button
+              onClick={() => handleScopeChange('comprehensive')}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all touch-manipulation ${
+                activeScope === 'comprehensive'
+                  ? 'bg-indigo-500/25 border border-indigo-500/40 text-indigo-300 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              🏆 All Syllabus (60)
+            </button>
+          </div>
+        </div>
+
+        <label className="flex items-center gap-2 cursor-pointer select-none text-slate-300 text-[11px]">
+          <input
+            type="checkbox"
+            checked={filterByScope}
+            onChange={e => setFilterByScope(e.target.checked)}
+            className="rounded border-slate-700 bg-slate-950 text-cyan-500 focus:ring-0"
+          />
+          <span>Focus on target topics ({visibleTopics.length} of {topics.length} in {subjects.find(s => s.id === selectedSubjectId)?.name || 'subject'})</span>
+        </label>
+      </div>
+
       {/* Subject Selector Buttons (Horizontal Scroll on Mobile) */}
       <div className="overflow-x-auto no-scrollbar py-1 -my-1">
         <div className="flex gap-2 min-w-max sm:flex-wrap">
@@ -227,7 +314,7 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <span>Topics List ({topics.length})</span>
+          <span>Topics List ({visibleTopics.length})</span>
         </button>
         <button
           onClick={() => {
@@ -255,18 +342,31 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
           <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs uppercase tracking-wider font-semibold text-slate-400">
-                Topics ({topics.length})
+                Topics ({visibleTopics.length})
               </span>
               <span className="text-[11px] text-cyan-400 font-medium">★ = High Yield</span>
             </div>
 
             {loading && topics.length === 0 ? (
               <div className="py-8 text-center text-xs text-slate-500">Loading topics...</div>
-            ) : topics.length === 0 ? (
-              <div className="py-8 text-center text-xs text-slate-500">No topics found for this subject.</div>
+            ) : visibleTopics.length === 0 ? (
+              <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 text-center space-y-2.5">
+                <p className="text-xs text-slate-300 font-semibold">
+                  All topics here are outside active &quot;{activeScope === 'qualify' ? 'Qualify Only' : 'Rank Booster'}&quot; scope
+                </p>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  These topics belong to the {activeTier === 3 ? 'Comprehensive' : 'Rank Booster'} syllabus.
+                </p>
+                <button
+                  onClick={() => setFilterByScope(false)}
+                  className="px-3 py-1.5 rounded-lg bg-cyan-600/20 border border-cyan-500/40 text-cyan-200 text-xs font-semibold hover:bg-cyan-600/30 transition-colors"
+                >
+                  Show All Topics ({topics.length})
+                </button>
+              </div>
             ) : (
               <div className="space-y-2">
-                {topics.map(t => {
+                {visibleTopics.map(t => {
                   const isCurrent = selectedLesson?.topic_id === t.id;
                   const isCompleted = t.lesson_status === 'completed';
 
@@ -287,8 +387,21 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
                       <div className="flex items-start justify-between gap-2">
                         <div className="space-y-1">
                           <div className="flex items-center gap-1.5 flex-wrap">
+                            {t.scope === 'qualify' ? (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                🎯 Qualify
+                              </span>
+                            ) : t.scope === 'scoring' ? (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                                🚀 Scoring
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-700/40 text-slate-400 border border-slate-600/30">
+                                🏆 Comp
+                              </span>
+                            )}
                             {t.is_high_yield === 1 && (
-                              <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
                                 High-Yield
                               </span>
                             )}

@@ -387,10 +387,37 @@ export async function handleLocalApi(urlString: string, options?: RequestInit): 
     const overviewSettings = {
       target_exam_date: settings.target_exam_date || '2027-02-06',
       target_cutoff: String(settings.target_cutoff || '35.0'),
+      target_scope: (settings.target_scope || 'qualify') as 'qualify' | 'scoring' | 'comprehensive',
       current_mode: (settings.current_mode || 'full') as 'full' | 'light',
       daily_target_lessons: '2',
       daily_target_reviews: '10',
       busy_periods: typeof settings.busy_periods === 'string' ? settings.busy_periods : JSON.stringify(settings.busy_periods || []),
+    };
+
+    const qualifyTopics = curriculum.topics.filter(t => (t as any).scope === 'qualify');
+    const scoringTopics = curriculum.topics.filter(t => (t as any).scope === 'qualify' || (t as any).scope === 'scoring');
+    const allTopics = curriculum.topics;
+
+    const completedQualify = qualifyTopics.filter(t => completedTopicIds.has(t.id)).length;
+    const completedScoring = scoringTopics.filter(t => completedTopicIds.has(t.id)).length;
+    const completedAll = allTopics.filter(t => completedTopicIds.has(t.id)).length;
+
+    const scopeStats = {
+      qualify: {
+        total: qualifyTopics.length,
+        completed: completedQualify,
+        pct: qualifyTopics.length > 0 ? Math.round((completedQualify / qualifyTopics.length) * 100) : 0,
+      },
+      scoring: {
+        total: scoringTopics.length,
+        completed: completedScoring,
+        pct: scoringTopics.length > 0 ? Math.round((completedScoring / scoringTopics.length) * 100) : 0,
+      },
+      comprehensive: {
+        total: allTopics.length,
+        completed: completedAll,
+        pct: allTopics.length > 0 ? Math.round((completedAll / allTopics.length) * 100) : 0,
+      },
     };
 
     return jsonResponse({
@@ -406,6 +433,7 @@ export async function handleLocalApi(urlString: string, options?: RequestInit): 
       mockSummary,
       streak: streakDays,
       settings: overviewSettings,
+      scopeStats,
     });
   }
 
@@ -417,10 +445,16 @@ export async function handleLocalApi(urlString: string, options?: RequestInit): 
   // 3. GET /api/topics
   if (pathname === '/api/topics' && method === 'GET') {
     const subjectId = searchParams.get('subject_id');
+    const scopeParam = searchParams.get('scope');
     const lessonProgress = getStore<any[]>(KEYS.LESSON_PROGRESS, []);
     let topics = curriculum.topics;
     if (subjectId) {
       topics = topics.filter(t => t.subject_id === subjectId);
+    }
+    if (scopeParam === 'qualify') {
+      topics = topics.filter(t => (t as any).scope === 'qualify');
+    } else if (scopeParam === 'scoring') {
+      topics = topics.filter(t => (t as any).scope === 'qualify' || (t as any).scope === 'scoring');
     }
 
     const progressMap = new Map(lessonProgress.map(p => [p.lesson_id, p]));
@@ -936,12 +970,14 @@ export async function handleLocalApi(urlString: string, options?: RequestInit): 
       current_mode: 'full',
       target_exam_date: '2027-02-06',
       target_cutoff: '35.0',
+      target_scope: 'qualify',
       busy_periods: [],
     });
 
     return jsonResponse({
       target_exam_date: settings.target_exam_date || '2027-02-06',
       target_cutoff: String(settings.target_cutoff || '35.0'),
+      target_scope: settings.target_scope || 'qualify',
       current_mode: settings.current_mode || 'full',
       busy_periods: Array.isArray(settings.busy_periods) ? settings.busy_periods : [],
     });
@@ -956,6 +992,7 @@ export async function handleLocalApi(urlString: string, options?: RequestInit): 
       current_mode: body.current_mode || current.current_mode || 'full',
       target_exam_date: body.target_exam_date || current.target_exam_date || '2027-02-06',
       target_cutoff: body.target_cutoff || current.target_cutoff || '35.0',
+      target_scope: body.target_scope || current.target_scope || 'qualify',
       busy_periods: body.busy_periods !== undefined ? body.busy_periods : current.busy_periods || [],
     };
     setStore(KEYS.SETTINGS, updated);

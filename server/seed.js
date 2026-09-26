@@ -1,14 +1,16 @@
 const { db } = require('./db');
 const { seedAllLessons } = require('./seed_all_lessons');
+const { MORE_TOPICS, MORE_QUESTIONS, MORE_FLASHCARDS } = require('./more_lessons');
 
 async function seedDatabase() {
   const existing = await db.prepare('SELECT COUNT(*) as count FROM subjects').get();
-  if (existing && existing.count > 0) {
-    console.log('Database already seeded. Skipping initial seeding.');
+  const existingTopics = await db.prepare('SELECT COUNT(*) as count FROM topics').get();
+  if (existing && existing.count > 0 && existingTopics && existingTopics.count >= 60) {
+    console.log('Database already fully seeded with 60 topics. Skipping initial seeding.');
     return;
   }
 
-  console.log('Seeding GATE CSE 2027 curriculum database...');
+  console.log('Seeding / Upgrading GATE CSE 2027 curriculum database with expanded topics & scopes...');
 
   // 1. Subjects
   const subjects = [
@@ -109,7 +111,13 @@ async function seedDatabase() {
 
   const subjectStmts = subjects.map(s => ({
     sql: `INSERT INTO subjects (id, name, tier, priority_weight, reference_book, citation_info)
-          VALUES (?, ?, ?, ?, ?, ?)`,
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            name = excluded.name,
+            tier = excluded.tier,
+            priority_weight = excluded.priority_weight,
+            reference_book = excluded.reference_book,
+            citation_info = excluded.citation_info`,
     args: [s.id, s.name, s.tier, s.priority_weight, s.reference_book, s.citation_info]
   }));
   await db.batch(subjectStmts);
@@ -117,71 +125,79 @@ async function seedDatabase() {
   // 2. High-Yield & Standard Topics
   const topics = [
     // General Aptitude (Tier 1)
-    { id: 'apt_quant_arithmetic', subject_id: 'aptitude', name: 'Percentages, Profit & Loss, Ratios', order_index: 1, is_high_yield: 1, estimated_study_mins: 25 },
-    { id: 'apt_quant_tsd', subject_id: 'aptitude', name: 'Time, Speed & Distance, Work', order_index: 2, is_high_yield: 1, estimated_study_mins: 30 },
-    { id: 'apt_quant_perm_prob', subject_id: 'aptitude', name: 'Permutations, Combinations & Probability', order_index: 3, is_high_yield: 1, estimated_study_mins: 30 },
-    { id: 'apt_verbal_grammar', subject_id: 'aptitude', name: 'Grammar, Sentence Completion & Vocabulary', order_index: 4, is_high_yield: 0, estimated_study_mins: 20 },
-    { id: 'apt_analytical_reasoning', subject_id: 'aptitude', name: 'Logical Deduction & Data Interpretation', order_index: 5, is_high_yield: 1, estimated_study_mins: 25 },
+    { id: 'apt_quant_arithmetic', subject_id: 'aptitude', name: 'Percentages, Profit & Loss, Ratios', order_index: 1, is_high_yield: 1, estimated_study_mins: 25, scope: 'qualify' },
+    { id: 'apt_quant_tsd', subject_id: 'aptitude', name: 'Time, Speed & Distance, Work', order_index: 2, is_high_yield: 1, estimated_study_mins: 30, scope: 'qualify' },
+    { id: 'apt_quant_perm_prob', subject_id: 'aptitude', name: 'Permutations, Combinations & Probability', order_index: 3, is_high_yield: 1, estimated_study_mins: 30, scope: 'qualify' },
+    { id: 'apt_verbal_grammar', subject_id: 'aptitude', name: 'Grammar, Sentence Completion & Vocabulary', order_index: 4, is_high_yield: 0, estimated_study_mins: 20, scope: 'scoring' },
+    { id: 'apt_analytical_reasoning', subject_id: 'aptitude', name: 'Logical Deduction & Data Interpretation', order_index: 5, is_high_yield: 1, estimated_study_mins: 25, scope: 'qualify' },
 
     // Engineering Math (Tier 1)
-    { id: 'math_linear_algebra_eigen', subject_id: 'engg_math', name: 'Matrices, Determinants & Eigenvalues', order_index: 1, is_high_yield: 1, estimated_study_mins: 35 },
-    { id: 'math_discrete_logic', subject_id: 'engg_math', name: 'Propositional & First-Order Logic', order_index: 2, is_high_yield: 1, estimated_study_mins: 30 },
-    { id: 'math_discrete_graphs', subject_id: 'engg_math', name: 'Graph Theory (Eulerian, Hamiltonian, Trees)', order_index: 3, is_high_yield: 1, estimated_study_mins: 35 },
-    { id: 'math_calculus_limits', subject_id: 'engg_math', name: 'Limits, Continuity & Maxima/Minima', order_index: 4, is_high_yield: 0, estimated_study_mins: 25 },
-    { id: 'math_prob_bayes', subject_id: 'engg_math', name: 'Conditional Probability & Bayes Theorem', order_index: 5, is_high_yield: 1, estimated_study_mins: 30 },
+    { id: 'math_linear_algebra_eigen', subject_id: 'engg_math', name: 'Matrices, Determinants & Eigenvalues', order_index: 1, is_high_yield: 1, estimated_study_mins: 35, scope: 'qualify' },
+    { id: 'math_discrete_logic', subject_id: 'engg_math', name: 'Propositional & First-Order Logic', order_index: 2, is_high_yield: 1, estimated_study_mins: 30, scope: 'qualify' },
+    { id: 'math_discrete_graphs', subject_id: 'engg_math', name: 'Graph Theory (Eulerian, Hamiltonian, Trees)', order_index: 3, is_high_yield: 1, estimated_study_mins: 35, scope: 'qualify' },
+    { id: 'math_calculus_limits', subject_id: 'engg_math', name: 'Limits, Continuity & Maxima/Minima', order_index: 4, is_high_yield: 0, estimated_study_mins: 25, scope: 'scoring' },
+    { id: 'math_prob_bayes', subject_id: 'engg_math', name: 'Conditional Probability & Bayes Theorem', order_index: 5, is_high_yield: 1, estimated_study_mins: 30, scope: 'qualify' },
 
     // Digital Logic (Tier 1)
-    { id: 'dl_number_systems', subject_id: 'digital_logic', name: 'Number Systems & 2s Complement Arithmetic', order_index: 1, is_high_yield: 0, estimated_study_mins: 20 },
-    { id: 'dl_kmaps_boolean', subject_id: 'digital_logic', name: 'Boolean Minimization & K-Maps', order_index: 2, is_high_yield: 1, estimated_study_mins: 30 },
-    { id: 'dl_combinational_mux', subject_id: 'digital_logic', name: 'Multiplexers, Decoders & Adders', order_index: 3, is_high_yield: 1, estimated_study_mins: 30 },
-    { id: 'dl_sequential_flipflops', subject_id: 'digital_logic', name: 'Flip-Flops, Counters & Registers', order_index: 4, is_high_yield: 1, estimated_study_mins: 35 },
+    { id: 'dl_number_systems', subject_id: 'digital_logic', name: 'Number Systems & 2s Complement Arithmetic', order_index: 1, is_high_yield: 0, estimated_study_mins: 20, scope: 'scoring' },
+    { id: 'dl_kmaps_boolean', subject_id: 'digital_logic', name: 'Boolean Minimization & K-Maps', order_index: 2, is_high_yield: 1, estimated_study_mins: 30, scope: 'qualify' },
+    { id: 'dl_combinational_mux', subject_id: 'digital_logic', name: 'Multiplexers, Decoders & Adders', order_index: 3, is_high_yield: 1, estimated_study_mins: 30, scope: 'qualify' },
+    { id: 'dl_sequential_flipflops', subject_id: 'digital_logic', name: 'Flip-Flops, Counters & Registers', order_index: 4, is_high_yield: 1, estimated_study_mins: 35, scope: 'qualify' },
 
     // DBMS (Tier 1)
-    { id: 'dbms_relational_keys', subject_id: 'dbms', name: 'Relational Model, Candidate Keys & Super Keys', order_index: 1, is_high_yield: 1, estimated_study_mins: 25 },
-    { id: 'dbms_normalization', subject_id: 'dbms', name: 'Functional Dependencies & Normal Forms (1NF–BCNF)', order_index: 2, is_high_yield: 1, estimated_study_mins: 40 },
-    { id: 'dbms_sql_rel_algebra', subject_id: 'dbms', name: 'SQL Queries, Joins & Relational Algebra', order_index: 3, is_high_yield: 1, estimated_study_mins: 35 },
-    { id: 'dbms_transactions_acid', subject_id: 'dbms', name: 'Transactions, ACID & Conflict Serializability', order_index: 4, is_high_yield: 1, estimated_study_mins: 35 },
-    { id: 'dbms_indexing_btrees', subject_id: 'dbms', name: 'Indexing Fundamentals & B/B+ Trees', order_index: 5, is_high_yield: 0, estimated_study_mins: 25 },
+    { id: 'dbms_relational_keys', subject_id: 'dbms', name: 'Relational Model, Candidate Keys & Super Keys', order_index: 1, is_high_yield: 1, estimated_study_mins: 25, scope: 'qualify' },
+    { id: 'dbms_normalization', subject_id: 'dbms', name: 'Functional Dependencies & Normal Forms (1NF–BCNF)', order_index: 2, is_high_yield: 1, estimated_study_mins: 40, scope: 'qualify' },
+    { id: 'dbms_sql_rel_algebra', subject_id: 'dbms', name: 'SQL Queries, Joins & Relational Algebra', order_index: 3, is_high_yield: 1, estimated_study_mins: 35, scope: 'qualify' },
+    { id: 'dbms_transactions_acid', subject_id: 'dbms', name: 'Transactions, ACID & Conflict Serializability', order_index: 4, is_high_yield: 1, estimated_study_mins: 35, scope: 'qualify' },
+    { id: 'dbms_indexing_btrees', subject_id: 'dbms', name: 'Indexing Fundamentals & B/B+ Trees', order_index: 5, is_high_yield: 0, estimated_study_mins: 25, scope: 'scoring' },
 
     // Programming & Data Structures (Tier 1)
-    { id: 'prog_c_fundamentals', subject_id: 'prog_ds', name: 'C Pointers, Arrays & Recursion', order_index: 1, is_high_yield: 1, estimated_study_mins: 30 },
-    { id: 'ds_complexity_asymptotics', subject_id: 'prog_ds', name: 'Asymptotic Notations & Recurrence Relations', order_index: 2, is_high_yield: 1, estimated_study_mins: 25 },
-    { id: 'ds_stacks_queues', subject_id: 'prog_ds', name: 'Stacks, Queues & Evaluation of Expressions', order_index: 3, is_high_yield: 1, estimated_study_mins: 25 },
-    { id: 'ds_trees_bst', subject_id: 'prog_ds', name: 'Binary Trees, BST & Tree Traversals', order_index: 4, is_high_yield: 1, estimated_study_mins: 35 },
-    { id: 'ds_hashing', subject_id: 'prog_ds', name: 'Hash Tables & Collision Resolution Techniques', order_index: 5, is_high_yield: 0, estimated_study_mins: 20 },
+    { id: 'prog_c_fundamentals', subject_id: 'prog_ds', name: 'C Pointers, Arrays & Recursion', order_index: 1, is_high_yield: 1, estimated_study_mins: 30, scope: 'qualify' },
+    { id: 'ds_complexity_asymptotics', subject_id: 'prog_ds', name: 'Asymptotic Notations & Recurrence Relations', order_index: 2, is_high_yield: 1, estimated_study_mins: 25, scope: 'qualify' },
+    { id: 'ds_stacks_queues', subject_id: 'prog_ds', name: 'Stacks, Queues & Evaluation of Expressions', order_index: 3, is_high_yield: 1, estimated_study_mins: 25, scope: 'qualify' },
+    { id: 'ds_trees_bst', subject_id: 'prog_ds', name: 'Binary Trees, BST & Tree Traversals', order_index: 4, is_high_yield: 1, estimated_study_mins: 35, scope: 'qualify' },
+    { id: 'ds_hashing', subject_id: 'prog_ds', name: 'Hash Tables & Collision Resolution Techniques', order_index: 5, is_high_yield: 0, estimated_study_mins: 20, scope: 'scoring' },
 
     // Operating Systems (Tier 2 - Fundamentals Only)
-    { id: 'os_cpu_scheduling', subject_id: 'os', name: 'Process Scheduling (FCFS, SJF, SRTF, Round Robin)', order_index: 1, is_high_yield: 1, estimated_study_mins: 30 },
-    { id: 'os_memory_paging', subject_id: 'os', name: 'Memory Management, Paging & TLB Hit Calculations', order_index: 2, is_high_yield: 1, estimated_study_mins: 35 },
-    { id: 'os_synchronization', subject_id: 'os', name: 'Basic Synchronization & Critical Section Problems', order_index: 3, is_high_yield: 0, estimated_study_mins: 25 },
-    { id: 'os_deadlocks', subject_id: 'os', name: 'Deadlock Necessary Conditions & Banker Algorithm', order_index: 4, is_high_yield: 1, estimated_study_mins: 25 },
+    { id: 'os_cpu_scheduling', subject_id: 'os', name: 'Process Scheduling (FCFS, SJF, SRTF, Round Robin)', order_index: 1, is_high_yield: 1, estimated_study_mins: 30, scope: 'qualify' },
+    { id: 'os_memory_paging', subject_id: 'os', name: 'Memory Management, Paging & TLB Hit Calculations', order_index: 2, is_high_yield: 1, estimated_study_mins: 35, scope: 'qualify' },
+    { id: 'os_synchronization', subject_id: 'os', name: 'Basic Synchronization & Critical Section Problems', order_index: 3, is_high_yield: 0, estimated_study_mins: 25, scope: 'scoring' },
+    { id: 'os_deadlocks', subject_id: 'os', name: 'Deadlock Necessary Conditions & Banker Algorithm', order_index: 4, is_high_yield: 1, estimated_study_mins: 25, scope: 'qualify' },
 
     // Computer Networks (Tier 2 - Fundamentals Only)
-    { id: 'cn_ip_subnetting', subject_id: 'cn', name: 'IPv4 Addressing, Subnetting & CIDR Masks', order_index: 1, is_high_yield: 1, estimated_study_mins: 35 },
-    { id: 'cn_tcp_udp', subject_id: 'cn', name: 'TCP 3-Way Handshake, Flow Control & UDP vs TCP', order_index: 2, is_high_yield: 1, estimated_study_mins: 30 },
-    { id: 'cn_protocols_dns_http', subject_id: 'cn', name: 'Key Application Protocols: HTTP, DNS, DHCP', order_index: 3, is_high_yield: 0, estimated_study_mins: 20 },
+    { id: 'cn_ip_subnetting', subject_id: 'cn', name: 'IPv4 Addressing, Subnetting & CIDR Masks', order_index: 1, is_high_yield: 1, estimated_study_mins: 35, scope: 'qualify' },
+    { id: 'cn_tcp_udp', subject_id: 'cn', name: 'TCP 3-Way Handshake, Flow Control & UDP vs TCP', order_index: 2, is_high_yield: 1, estimated_study_mins: 30, scope: 'scoring' },
+    { id: 'cn_protocols_dns_http', subject_id: 'cn', name: 'Key Application Protocols: HTTP, DNS, DHCP', order_index: 3, is_high_yield: 0, estimated_study_mins: 20, scope: 'scoring' },
 
     // COA (Tier 2 - Fundamentals Only)
-    { id: 'coa_cache_memory', subject_id: 'coa', name: 'Cache Memory Mapping (Direct, Set-Associative) & Hits', order_index: 1, is_high_yield: 1, estimated_study_mins: 35 },
-    { id: 'coa_pipelining', subject_id: 'coa', name: 'Instruction Pipelining, Hazards & Speedup Factor', order_index: 2, is_high_yield: 1, estimated_study_mins: 30 },
-    { id: 'coa_instruction_cycle', subject_id: 'coa', name: 'Instruction Cycle & Addressing Modes Overview', order_index: 3, is_high_yield: 0, estimated_study_mins: 20 },
+    { id: 'coa_cache_memory', subject_id: 'coa', name: 'Cache Memory Mapping (Direct, Set-Associative) & Hits', order_index: 1, is_high_yield: 1, estimated_study_mins: 35, scope: 'scoring' },
+    { id: 'coa_pipelining', subject_id: 'coa', name: 'Instruction Pipelining, Hazards & Speedup Factor', order_index: 2, is_high_yield: 1, estimated_study_mins: 30, scope: 'scoring' },
+    { id: 'coa_instruction_cycle', subject_id: 'coa', name: 'Instruction Cycle & Addressing Modes Overview', order_index: 3, is_high_yield: 0, estimated_study_mins: 20, scope: 'scoring' },
 
     // TOC (Tier 3 - Light Touch)
-    { id: 'toc_regular_languages', subject_id: 'toc', name: 'Finite Automata (DFA/NFA) & Regular Expressions', order_index: 1, is_high_yield: 0, estimated_study_mins: 25 },
-    { id: 'toc_properties', subject_id: 'toc', name: 'Closure Properties of Regular Languages', order_index: 2, is_high_yield: 0, estimated_study_mins: 20 },
+    { id: 'toc_regular_languages', subject_id: 'toc', name: 'Finite Automata (DFA/NFA) & Regular Expressions', order_index: 1, is_high_yield: 0, estimated_study_mins: 25, scope: 'scoring' },
+    { id: 'toc_properties', subject_id: 'toc', name: 'Closure Properties of Regular Languages', order_index: 2, is_high_yield: 0, estimated_study_mins: 20, scope: 'scoring' },
 
     // Algorithms (Tier 3 - Light Touch)
-    { id: 'algo_sorting_searching', subject_id: 'algorithms', name: 'Standard Sorting & Searching (MergeSort, QuickSort, Binary Search)', order_index: 1, is_high_yield: 0, estimated_study_mins: 25 },
-    { id: 'algo_greedy_basics', subject_id: 'algorithms', name: 'Greedy Strategy (Fractional Knapsack & Huffman Basics)', order_index: 2, is_high_yield: 0, estimated_study_mins: 20 },
+    { id: 'algo_sorting_searching', subject_id: 'algorithms', name: 'Standard Sorting & Searching (MergeSort, QuickSort, Binary Search)', order_index: 1, is_high_yield: 0, estimated_study_mins: 25, scope: 'scoring' },
+    { id: 'algo_greedy_basics', subject_id: 'algorithms', name: 'Greedy Strategy (Fractional Knapsack & Huffman Basics)', order_index: 2, is_high_yield: 0, estimated_study_mins: 20, scope: 'scoring' },
 
     // Compiler Design (Tier 3 - Light Touch)
-    { id: 'comp_phases_overview', subject_id: 'compiler', name: 'Overview of 6 Phases of Compiler & Symbol Table', order_index: 1, is_high_yield: 0, estimated_study_mins: 20 }
+    { id: 'comp_phases_overview', subject_id: 'compiler', name: 'Overview of 6 Phases of Compiler & Symbol Table', order_index: 1, is_high_yield: 0, estimated_study_mins: 20, scope: 'comprehensive' }
   ];
 
-  const topicStmts = topics.map(t => ({
-    sql: `INSERT INTO topics (id, subject_id, name, order_index, is_high_yield, estimated_study_mins)
-          VALUES (?, ?, ?, ?, ?, ?)`,
-    args: [t.id, t.subject_id, t.name, t.order_index, t.is_high_yield, t.estimated_study_mins]
+  const allTopics = [...topics, ...MORE_TOPICS];
+
+  const topicStmts = allTopics.map(t => ({
+    sql: `INSERT INTO topics (id, subject_id, name, order_index, is_high_yield, estimated_study_mins, scope)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            name = excluded.name,
+            order_index = excluded.order_index,
+            is_high_yield = excluded.is_high_yield,
+            estimated_study_mins = excluded.estimated_study_mins,
+            scope = excluded.scope`,
+    args: [t.id, t.subject_id, t.name, t.order_index, t.is_high_yield, t.estimated_study_mins, t.scope || 'scoring']
   }));
   await db.batch(topicStmts);
 
@@ -514,7 +530,12 @@ Physical Address is partitioned into bit fields:
 
   const lessonStmts = lessons.map(l => ({
     sql: `INSERT INTO lessons (id, topic_id, title, content_markdown, quick_check_questions, citation)
-          VALUES (?, ?, ?, ?, ?, ?)`,
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            title = excluded.title,
+            content_markdown = excluded.content_markdown,
+            quick_check_questions = excluded.quick_check_questions,
+            citation = excluded.citation`,
     args: [l.id, l.topic_id, l.title, l.content_markdown, l.quick_check_questions, l.citation]
   }));
   await db.batch(lessonStmts);
@@ -677,10 +698,13 @@ Physical Address is partitioned into bit fields:
     }
   ];
 
-  const questionStmts = questions.map(q => ({
+  const allQuestions = [...questions, ...MORE_QUESTIONS];
+
+  const questionStmts = allQuestions.map(q => ({
     sql: `INSERT INTO questions (id, subject_id, topic_id, type, marks, difficulty, question_text, options, correct_answer, explanation, is_pyq, pyq_year, pyq_session)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    args: [q.id, q.subject_id, q.topic_id, q.type, q.marks, q.difficulty, q.question_text, q.options, q.correct_answer, q.explanation, q.is_pyq, q.pyq_year, q.pyq_session]
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO NOTHING`,
+    args: [q.id, q.subject_id, q.topic_id, q.type, q.marks, q.difficulty, q.question_text, typeof q.options === 'string' ? q.options : JSON.stringify(q.options), q.correct_answer, q.explanation, q.is_pyq, q.pyq_year, q.pyq_session]
   }));
   await db.batch(questionStmts);
 
@@ -736,15 +760,18 @@ Physical Address is partitioned into bit fields:
     }
   ];
 
+  const allFlashcards = [...flashcards, ...MORE_FLASHCARDS];
+
   const nowIso = new Date().toISOString();
-  const flashcardStmts = flashcards.map(fc => ({
+  const flashcardStmts = allFlashcards.map(fc => ({
     sql: `INSERT INTO flashcards (id, subject_id, topic_id, front, back, citation)
-          VALUES (?, ?, ?, ?, ?, ?)`,
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO NOTHING`,
     args: [fc.id, fc.subject_id, fc.topic_id, fc.front, fc.back, fc.citation]
   }));
   await db.batch(flashcardStmts);
 
-  const srStmts = flashcards.map(fc => ({
+  const srStmts = allFlashcards.map(fc => ({
     sql: `INSERT INTO spaced_repetition_cards (id, user_id, item_type, item_id, repetition, interval_days, ease_factor, due_date, last_reviewed_at, last_rating)
           VALUES (?, 'guest', 'flashcard', ?, 0, 0, 2.5, ?, null, null)
           ON CONFLICT(user_id, item_type, item_id) DO NOTHING`,
@@ -754,12 +781,13 @@ Physical Address is partitioned into bit fields:
 
   // 6. Default Study Settings
   const settingStmts = [
-    { sql: 'INSERT INTO study_settings (key, user_id, value) VALUES (?, ?, ?)', args: ['target_exam_date', 'guest', '2027-02-06'] },
-    { sql: 'INSERT INTO study_settings (key, user_id, value) VALUES (?, ?, ?)', args: ['target_cutoff', 'guest', '35.0'] },
-    { sql: 'INSERT INTO study_settings (key, user_id, value) VALUES (?, ?, ?)', args: ['current_mode', 'guest', 'full'] },
-    { sql: 'INSERT INTO study_settings (key, user_id, value) VALUES (?, ?, ?)', args: ['daily_target_lessons', 'guest', '1'] },
-    { sql: 'INSERT INTO study_settings (key, user_id, value) VALUES (?, ?, ?)', args: ['daily_target_reviews', 'guest', '5'] },
-    { sql: 'INSERT INTO study_settings (key, user_id, value) VALUES (?, ?, ?)', args: ['busy_periods', 'guest', JSON.stringify([{ start: '2026-11-15', end: '2026-12-05', label: 'Semester End Exams (Light Mode Suggested)' }])] },
+    { sql: 'INSERT OR IGNORE INTO study_settings (key, user_id, value) VALUES (?, ?, ?)', args: ['target_exam_date', 'guest', '2027-02-06'] },
+    { sql: 'INSERT OR IGNORE INTO study_settings (key, user_id, value) VALUES (?, ?, ?)', args: ['target_cutoff', 'guest', '35.0'] },
+    { sql: 'INSERT OR IGNORE INTO study_settings (key, user_id, value) VALUES (?, ?, ?)', args: ['target_scope', 'guest', 'qualify'] },
+    { sql: 'INSERT OR IGNORE INTO study_settings (key, user_id, value) VALUES (?, ?, ?)', args: ['current_mode', 'guest', 'full'] },
+    { sql: 'INSERT OR IGNORE INTO study_settings (key, user_id, value) VALUES (?, ?, ?)', args: ['daily_target_lessons', 'guest', '1'] },
+    { sql: 'INSERT OR IGNORE INTO study_settings (key, user_id, value) VALUES (?, ?, ?)', args: ['daily_target_reviews', 'guest', '5'] },
+    { sql: 'INSERT OR IGNORE INTO study_settings (key, user_id, value) VALUES (?, ?, ?)', args: ['busy_periods', 'guest', JSON.stringify([{ start: '2026-11-15', end: '2026-12-05', label: 'Semester End Exams (Light Mode Suggested)' }])] },
   ];
   await db.batch(settingStmts);
 

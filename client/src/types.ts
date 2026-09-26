@@ -1,4 +1,5 @@
 export type Tier = 1 | 2 | 3;
+export type TargetScope = 'qualify' | 'scoring' | 'comprehensive';
 
 export interface Subject {
   id: string;
@@ -20,6 +21,7 @@ export interface Topic {
   order_index: number;
   is_high_yield: number;
   estimated_study_mins: number;
+  scope?: TargetScope;
   subject_name?: string;
   subject_tier?: Tier;
   reference_book?: string;
@@ -150,9 +152,15 @@ export interface OverviewData {
     target_exam_date?: string;
     target_cutoff?: string;
     current_mode?: 'full' | 'light';
+    target_scope?: TargetScope;
     daily_target_lessons?: string;
     daily_target_reviews?: string;
     busy_periods?: string;
+  };
+  scopeStats?: {
+    qualify: { total: number; completed: number; pct: number };
+    scoring: { total: number; completed: number; pct: number };
+    comprehensive: { total: number; completed: number; pct: number };
   };
 }
 

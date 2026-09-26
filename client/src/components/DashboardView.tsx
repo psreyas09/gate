@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Award,
   Zap,
@@ -10,9 +10,11 @@ import {
   Target,
   Clock,
   BookMarked,
-  User as UserIcon
+  User as UserIcon,
+  Sparkles,
+  Trophy
 } from 'lucide-react';
-import { OverviewData, User } from '../types';
+import { OverviewData, User, TargetScope } from '../types';
 import { NavTab } from './Navbar';
 
 interface DashboardViewProps {
@@ -30,7 +32,29 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   currentUser,
   onOpenAuth,
 }) => {
-  const cutoff = parseFloat(overview?.settings?.target_cutoff || '35.0');
+  const initialScope = (overview?.settings?.target_scope as TargetScope) || 'qualify';
+  const [activeScope, setActiveScope] = useState<TargetScope>(initialScope);
+
+  useEffect(() => {
+    if (overview?.settings?.target_scope) {
+      setActiveScope(overview.settings.target_scope as TargetScope);
+    }
+  }, [overview?.settings?.target_scope]);
+
+  const handleSwitchScope = async (scope: TargetScope) => {
+    setActiveScope(scope);
+    const newCutoff = scope === 'qualify' ? '35.0' : scope === 'scoring' ? '55.0' : '75.0';
+    try {
+      await fetch('/api/calendar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target_scope: scope, target_cutoff: newCutoff }),
+      });
+      localStorage.setItem('gate_study_scope', scope);
+    } catch {}
+  };
+
+  const cutoff = activeScope === 'qualify' ? '35.0' : activeScope === 'scoring' ? '55.0' : '75.0';
   const examDateStr = overview?.settings?.target_exam_date || '2027-02-06';
   const daysRemaining = Math.max(0, Math.ceil((new Date(examDateStr).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
 
@@ -43,8 +67,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const tier2Pct = tier2.total_lessons > 0 ? Math.round((tier2.completed_lessons / tier2.total_lessons) * 100) : 0;
   const tier3Pct = tier3.total_lessons > 0 ? Math.round((tier3.completed_lessons / tier3.total_lessons) * 100) : 0;
 
-  // Estimated Qualifying Readiness based on Tier 1 (70% weight) and Tier 2 (30% weight)
-  const readinessScore = Math.min(100, Math.round(tier1Pct * 0.7 + tier2Pct * 0.3));
+  const scopeInfo = overview?.scopeStats?.[activeScope] || {
+    total: activeScope === 'qualify' ? 24 : activeScope === 'scoring' ? 50 : 60,
+    completed: overview?.completedLessons || 0,
+    pct: 0
+  };
+  const readinessScore = scopeInfo.pct || (scopeInfo.total > 0 ? Math.round((scopeInfo.completed / scopeInfo.total) * 100) : 0);
+
+  const scopeDescriptions = {
+    qualify: {
+      badge: 'Strategy: 35+ High-Yield Qualification (Pass Without Burnout)',
+      desc: 'Targeting qualification with minimum study hours. Focusing on 24 essential high-yield core topics across Aptitude, Engg Math, DBMS, and core OS/DS, while skipping exhaustive edge cases.',
+      gaugeSub: 'Based on 24 High-Yield Qualify Topics'
+    },
+    scoring: {
+      badge: 'Strategy: 50-65 Marks Rank Booster (Top State Colleges / PSU)',
+      desc: 'Balanced preparation covering 50 core & medium-yield topics across Tier 1 and Tier 2 subjects (Networks, COA, full OS, algorithms fundamentals).',
+      gaugeSub: 'Based on 50 Tier 1 & 2 Core Topics'
+    },
+    comprehensive: {
+      badge: 'Strategy: 75-100 Marks Comprehensive (Top IITs & IISc - AIR < 500)',
+      desc: 'Complete full-depth GATE syllabus covering all 60 topics including Compiler Design, Dynamic Programming, and advanced Theory of Computation.',
+      gaugeSub: 'Based on All 60 GATE Curriculum Topics'
+    }
+  };
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -74,22 +120,53 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       )}
 
-      {/* 35+ Qualifying Target Banner */}
+      {/* Target Strategy & Preparation Banner */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950/60 to-slate-900 border border-indigo-500/30 p-4 sm:p-8 shadow-xl">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5 sm:gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-[11px] sm:text-xs font-semibold">
-              <Target className="w-3.5 h-3.5 shrink-0" /> Strategy: 35+/100 High-Yield Qualification
+          <div className="space-y-3 max-w-2xl">
+            {/* Strategy Switcher Pills */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                onClick={() => handleSwitchScope('qualify')}
+                className={`px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-semibold flex items-center gap-1.5 transition-all touch-manipulation ${
+                  activeScope === 'qualify'
+                    ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 shadow-sm'
+                    : 'bg-slate-800/60 border border-slate-700/60 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <span>🎯 Qualify Only (24)</span>
+              </button>
+              <button
+                onClick={() => handleSwitchScope('scoring')}
+                className={`px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-semibold flex items-center gap-1.5 transition-all touch-manipulation ${
+                  activeScope === 'scoring'
+                    ? 'bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 shadow-sm'
+                    : 'bg-slate-800/60 border border-slate-700/60 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <span>🚀 Rank Booster (50)</span>
+              </button>
+              <button
+                onClick={() => handleSwitchScope('comprehensive')}
+                className={`px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-semibold flex items-center gap-1.5 transition-all touch-manipulation ${
+                  activeScope === 'comprehensive'
+                    ? 'bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 shadow-sm'
+                    : 'bg-slate-800/60 border border-slate-700/60 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <span>🏆 Comprehensive (60)</span>
+              </button>
             </div>
+
             <h1 className="text-xl sm:text-3xl font-bold text-white tracking-tight">
               GATE CSE 2027 Preparation
             </h1>
             <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-              Targeting qualification without burnout. We prioritize Tier 1 (Aptitude, Engg Math, Digital Logic, DBMS, C &amp; DS) and Tier 2 core fundamentals, explicitly skipping exhaustive edge cases.
+              {scopeDescriptions[activeScope].desc}
             </p>
 
             {/* Quick Metrics Badges */}
-            <div className="grid grid-cols-1 xs:grid-cols-3 sm:flex sm:flex-wrap items-center gap-2 sm:gap-4 pt-2 text-[11px] sm:text-xs text-slate-400">
+            <div className="grid grid-cols-1 xs:grid-cols-3 sm:flex sm:flex-wrap items-center gap-2 sm:gap-4 pt-1 text-[11px] sm:text-xs text-slate-400">
               <div className="flex items-center gap-1.5 p-2 rounded-lg bg-slate-850/60 sm:p-0 sm:bg-transparent border border-slate-800 sm:border-0">
                 <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400 shrink-0" />
                 <span><strong className="text-slate-200">{daysRemaining}</strong> Days to Exam</span>
@@ -100,7 +177,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
               <div className="flex items-center gap-1.5 p-2 rounded-lg bg-slate-850/60 sm:p-0 sm:bg-transparent border border-slate-800 sm:border-0">
                 <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-400 shrink-0" />
-                <span><strong className="text-slate-200">{overview.completedLessons}</strong> of {overview.totalLessons} Mastered</span>
+                <span><strong className="text-slate-200">{scopeInfo.completed}</strong> of {scopeInfo.total} Mastered</span>
               </div>
             </div>
           </div>
@@ -108,7 +185,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           {/* Readiness Gauge */}
           <div className="flex flex-col items-center justify-center p-4 sm:p-5 rounded-xl bg-slate-900/90 border border-slate-700/60 w-full md:w-auto md:min-w-[210px] text-center shadow-lg">
             <span className="text-[11px] sm:text-xs uppercase tracking-wider font-semibold text-slate-400">
-              Qualifying Readiness
+              {activeScope === 'qualify' ? 'Qualifying Readiness' : activeScope === 'scoring' ? 'Scoring Readiness' : 'Overall Mastery'}
             </span>
             <div className="my-1.5 sm:my-2 text-3xl sm:text-4xl font-extrabold bg-gradient-to-r from-cyan-400 to-emerald-400 bg-clip-text text-transparent">
               {readinessScore}%
@@ -120,7 +197,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               />
             </div>
             <span className="text-[10px] sm:text-[11px] text-slate-400">
-              Based on Tier 1 &amp; Tier 2 Mastery
+              {scopeDescriptions[activeScope].gaugeSub}
             </span>
           </div>
         </div>
