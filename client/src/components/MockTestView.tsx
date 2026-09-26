@@ -45,6 +45,7 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
   const [mockHistory, setMockHistory] = useState<MockSession[]>([]);
   const [isCalcOpen, setIsCalcOpen] = useState(false);
   const [reviewFilter, setReviewFilter] = useState<'all' | 'incorrect' | 'skipped' | 'flagged'>('all');
+  const [showPaletteMobile, setShowPaletteMobile] = useState(false);
   const [starredQuestions, setStarredQuestions] = useState<string[]>(() => {
     try {
       return JSON.parse(localStorage.getItem('gate_bookmarked_questions') || '[]');
@@ -243,8 +244,6 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
       </div>
     );
   }
-
-  const [showPaletteMobile, setShowPaletteMobile] = useState(false);
 
   // Active Running Mock
   if (testState === 'running' && sessionData) {

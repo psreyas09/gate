@@ -328,6 +328,28 @@ Addressed production diagnostic findings on `gatestudy.vercel.app` (high latency
 
 ---
 
+## Session 9 — React Error #310 Fix: Eliminate Conditional Hook in MockTestView
+
+### Context
+User reported `Uncaught Error: Minified React error #310` originating from `index-yUyWaMct.js:8:50492` (`useState` inside `Mc` component at line 267). React error #310 means *"Rendered more hooks than during the previous render"*.
+
+### Root Cause
+In [`client/src/components/MockTestView.tsx`](file:///home/sreyas/projects/gate_study/client/src/components/MockTestView.tsx), the state hook:
+```tsx
+const [showPaletteMobile, setShowPaletteMobile] = useState(false);
+```
+was located below the `if (testState === 'idle') return (...)` early return.
+- On initial mount (`testState === 'idle'`), this hook was skipped by the early return.
+- When starting a test (`testState === 'running'`), React executed this hook, resulting in more hooks being called than during the initial render, immediately crashing React with Error #310.
+
+### Changes Made
+
+#### `client/src/components/MockTestView.tsx`
+- Moved `const [showPaletteMobile, setShowPaletteMobile] = useState(false);` up to the top level alongside other state declarations, before any conditional logic or early returns.
+- Verified across entire codebase with automated AST-like hook validator: 0 hook violations remaining across all client components.
+
+---
+
 ## Architecture Overview
 
 ```
