@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Subject, Topic, Lesson, Tier, TargetScope } from '../types';
 import { MathText } from './MathText';
+import { getCachedSubjects, setCachedSubjects, getCachedTopics, setCachedTopics } from '../services/curriculumCache';
 
 interface LessonsViewProps {
   onProgressUpdated: () => void;
@@ -19,9 +20,20 @@ interface LessonsViewProps {
 
 export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, selectedTopicId: initialTopicId }) => {
   const [activeTier, setActiveTier] = useState<Tier>(1);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string>('');
-  const [topics, setTopics] = useState<Topic[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>(() => getCachedSubjects() || []);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>(() => {
+    const cached = getCachedSubjects();
+    if (cached && cached.length > 0) {
+      const firstTier1 = cached.find(s => s.tier === 1);
+      return firstTier1 ? firstTier1.id : cached[0].id;
+    }
+    return '';
+  });
+  const [topics, setTopics] = useState<Topic[]>(() => {
+    const cachedSub = getCachedSubjects();
+    const subId = cachedSub?.[0]?.id;
+    return subId ? getCachedTopics(subId) || [] : [];
+  });
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [loading, setLoading] = useState(false);
   const [mobileViewMode, setMobileViewMode] = useState<'topics' | 'lesson'>('topics');
@@ -51,10 +63,13 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
     fetch('/api/subjects')
       .then(res => res.json())
       .then((data: Subject[]) => {
-        setSubjects(data);
-        const firstTier1 = data.find(s => s.tier === 1);
-        if (firstTier1 && !selectedSubjectId) {
-          setSelectedSubjectId(firstTier1.id);
+        if (Array.isArray(data) && data.length > 0) {
+          setSubjects(data);
+          setCachedSubjects(data);
+          if (!selectedSubjectId) {
+            const firstTier1 = data.find(s => s.tier === 1);
+            if (firstTier1) setSelectedSubjectId(firstTier1.id);
+          }
         }
       })
       .catch(console.error);
@@ -63,27 +78,38 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
   // 2. Fetch topics when selected subject changes, and auto-load the first topic's lesson!
   useEffect(() => {
     if (!selectedSubjectId) return;
-    setLoading(true);
+
+    // Use cached topics immediately if available
+    const cached = getCachedTopics(selectedSubjectId);
+    if (cached && cached.length > 0) {
+      setTopics(cached);
+      let targetTopic = initialTopicId ? cached.find(top => top.id === initialTopicId) : (cached.find(top => top.lesson_id) || cached[0]);
+      if (targetTopic && targetTopic.lesson_id && !selectedLesson) {
+        loadLesson(targetTopic.lesson_id, false);
+      }
+    } else {
+      setLoading(true);
+    }
+
     fetch(`/api/topics?subject_id=${selectedSubjectId}`)
       .then(res => res.json())
       .then((data: Topic[]) => {
-        setTopics(data);
-        setLoading(false);
+        if (Array.isArray(data)) {
+          setTopics(data);
+          setCachedTopics(selectedSubjectId, undefined, data);
+          setLoading(false);
 
-        // Auto-select topic:
-        // Either initialTopicId if specified, or first topic with a lesson
-        let targetTopic: Topic | undefined;
-        if (initialTopicId) {
-          targetTopic = data.find(top => top.id === initialTopicId);
-        }
-        if (!targetTopic && data.length > 0) {
-          targetTopic = data.find(top => top.lesson_id) || data[0];
-        }
+          let targetTopic: Topic | undefined;
+          if (initialTopicId) {
+            targetTopic = data.find(top => top.id === initialTopicId);
+          }
+          if (!targetTopic && data.length > 0) {
+            targetTopic = data.find(top => top.lesson_id) || data[0];
+          }
 
-        if (targetTopic && targetTopic.lesson_id) {
-          loadLesson(targetTopic.lesson_id, false);
-        } else {
-          setSelectedLesson(null);
+          if (targetTopic && targetTopic.lesson_id && (!selectedLesson || selectedLesson.topic_id !== targetTopic.id)) {
+            loadLesson(targetTopic.lesson_id, false);
+          }
         }
       })
       .catch(() => setLoading(false));

@@ -17,6 +17,7 @@ import {
 import { Question, Subject, Topic, Tier } from '../types';
 import { MathText } from './MathText';
 import { GateCalculator } from './GateCalculator';
+import { getCachedSubjects, setCachedSubjects } from '../services/curriculumCache';
 
 interface PracticeViewProps {
   initialSubjectId?: string;
@@ -25,7 +26,7 @@ interface PracticeViewProps {
 
 export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = false }) => {
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>(() => getCachedSubjects() || []);
   const [selectedSubject, setSelectedSubject] = useState<string>('');
   const [selectedTier, setSelectedTier] = useState<string>('');
   const [selectedType, setSelectedType] = useState<string>('');
@@ -60,7 +61,12 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
   useEffect(() => {
     fetch('/api/subjects')
       .then(res => res.json())
-      .then((data: Subject[]) => setSubjects(data))
+      .then((data: Subject[]) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setSubjects(data);
+          setCachedSubjects(data);
+        }
+      })
       .catch(console.error);
   }, []);
 

@@ -1,17 +1,27 @@
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { db, DB_PATH, initSchema } = require('./db');
 const { seedDatabase } = require('./seed');
 const { calculateSM2 } = require('./sm2');
 const { exportDatabaseJSON, importDatabaseJSON, createLocalSnapshot } = require('./backup');
-const { hashPassword, verifyPassword, createToken, authMiddleware, requireAuth } = require('./auth');
+const { hashPassword, verifyPassword, createToken, authMiddleware, requireAuth, setCachedUser, invalidateUserCache } = require('./auth');
 
 let initPromise = null;
 async function ensureDbInitialized() {
   if (!initPromise) {
     initPromise = (async () => {
+      // Fast probe: If topics table already exists and has full curriculum (>=60), bypass heavy DDL & seeds
+      try {
+        const probe = await db.prepare("SELECT COUNT(*) as c FROM topics").get();
+        if (probe && probe.c >= 60) {
+          return;
+        }
+      } catch (err) {
+        // Database not initialized yet, perform full schema & seed below
+      }
       await initSchema();
       await seedDatabase();
       await ensureGuestSeedCards();
@@ -135,6 +145,7 @@ async function migrateGuestData(targetUserId) {
 const app = express();
 
 app.use(cors());
+app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 
 
@@ -202,6 +213,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
 
     const user = { id: userId, username: cleanUsername, email: email ? email.trim() : null, created_at: nowIso };
+    setCachedUser(user);
     const token = createToken(user);
 
     res.status(201).json({
@@ -239,6 +251,7 @@ app.post('/api/auth/login', async (req, res) => {
     await db.prepare('UPDATE users SET last_login_at = ? WHERE id = ?').run(nowIso, user.id);
 
     const safeUser = { id: user.id, username: user.username, email: user.email, created_at: user.created_at };
+    setCachedUser(safeUser);
     const token = createToken(safeUser);
 
     res.json({
@@ -276,8 +289,10 @@ app.post('/api/auth/reset-password', async (req, res) => {
 
     const { hash, salt } = hashPassword(newPassword);
     await db.prepare('UPDATE users SET password_hash = ?, salt = ? WHERE id = ?').run(hash, salt, user.id);
+    invalidateUserCache(user.id);
 
     const safeUser = { id: user.id, username: user.username, email: user.email, created_at: user.created_at };
+    setCachedUser(safeUser);
     const token = createToken(safeUser);
 
     res.json({
@@ -349,21 +364,10 @@ app.get('/api/overview', async (req, res) => {
   try {
     const nowIso = new Date().toISOString();
 
-    const [
-      totalLessonsRow,
-      completedLessonsRow,
-      tierStats,
-      dueReviewsRow,
-      weakTopics,
-      overallStatsRaw,
-      mockSummaryRaw,
-      recentActivityRows,
-      settingsRows,
-      scopeCountsRaw,
-    ] = await Promise.all([
-      db.prepare('SELECT COUNT(*) as c FROM lessons').get(),
-      db.prepare("SELECT COUNT(*) as c FROM user_lesson_progress WHERE status = 'completed' AND user_id = ?").get(req.userId),
-      db.prepare(`
+    const batchResults = await db.batch([
+      { sql: 'SELECT COUNT(*) as c FROM lessons', args: [] },
+      { sql: "SELECT COUNT(*) as c FROM user_lesson_progress WHERE status = 'completed' AND user_id = ?", args: [req.userId] },
+      { sql: `
         SELECT s.tier, COUNT(DISTINCT l.id) as total_lessons,
                SUM(CASE WHEN p.status = 'completed' THEN 1 ELSE 0 END) as completed_lessons
         FROM subjects s
@@ -372,11 +376,9 @@ app.get('/api/overview', async (req, res) => {
         LEFT JOIN user_lesson_progress p ON l.id = p.lesson_id AND p.user_id = ?
         GROUP BY s.tier
         ORDER BY s.tier ASC
-      `).all(req.userId),
-      db.prepare(`
-        SELECT COUNT(*) as c FROM spaced_repetition_cards WHERE due_date <= ? AND user_id = ?
-      `).get(nowIso, req.userId),
-      db.prepare(`
+      `, args: [req.userId] },
+      { sql: 'SELECT COUNT(*) as c FROM spaced_repetition_cards WHERE due_date <= ? AND user_id = ?', args: [nowIso, req.userId] },
+      { sql: `
         SELECT t.id, t.name as topic_name, s.name as subject_name, s.tier, t.is_high_yield,
                COUNT(a.id) as total_attempts,
                SUM(a.is_correct) as correct_attempts,
@@ -389,30 +391,19 @@ app.get('/api/overview', async (req, res) => {
         HAVING accuracy < 60.0 AND total_attempts >= 1
         ORDER BY t.is_high_yield DESC, accuracy ASC
         LIMIT 5
-      `).all(req.userId),
-      db.prepare(`
-        SELECT COUNT(*) as total_attempts,
-               COALESCE(SUM(is_correct), 0) as total_correct
-        FROM user_question_attempts
-        WHERE user_id = ?
-      `).get(req.userId),
-      db.prepare(`
+      `, args: [req.userId] },
+      { sql: 'SELECT COUNT(*) as total_attempts, COALESCE(SUM(is_correct), 0) as total_correct FROM user_question_attempts WHERE user_id = ?', args: [req.userId] },
+      { sql: `
         SELECT COUNT(*) as total_mocks,
                COALESCE(MAX(score_obtained), 0) as high_score,
                COALESCE((SELECT score_obtained FROM mock_sessions WHERE user_id = ? ORDER BY created_at DESC LIMIT 1), 0) as latest_score,
                COALESCE((SELECT passed_cutoff FROM mock_sessions WHERE user_id = ? ORDER BY created_at DESC LIMIT 1), 0) as latest_passed
         FROM mock_sessions
         WHERE user_id = ?
-      `).get(req.userId, req.userId, req.userId),
-      db.prepare(`
-        SELECT DISTINCT SUBSTR(attempted_at, 1, 10) as day
-        FROM user_question_attempts
-        WHERE user_id = ?
-        ORDER BY day DESC
-        LIMIT 30
-      `).all(req.userId),
-      db.prepare('SELECT * FROM study_settings WHERE user_id = ?').all(req.userId),
-      db.prepare(`
+      `, args: [req.userId, req.userId, req.userId] },
+      { sql: 'SELECT DISTINCT SUBSTR(attempted_at, 1, 10) as day FROM user_question_attempts WHERE user_id = ? ORDER BY day DESC LIMIT 30', args: [req.userId] },
+      { sql: 'SELECT * FROM study_settings WHERE user_id = ?', args: [req.userId] },
+      { sql: `
         SELECT COALESCE(t.scope, 'scoring') as scope,
                COUNT(DISTINCT t.id) as total_topics,
                COUNT(DISTINCT CASE WHEN p.status = 'completed' THEN t.id END) as completed_topics
@@ -420,8 +411,19 @@ app.get('/api/overview', async (req, res) => {
         LEFT JOIN lessons l ON t.id = l.topic_id
         LEFT JOIN user_lesson_progress p ON l.id = p.lesson_id AND p.user_id = ?
         GROUP BY t.scope
-      `).all(req.userId),
+      `, args: [req.userId] },
     ]);
+
+    const totalLessonsRow = batchResults[0]?.rows?.[0] || null;
+    const completedLessonsRow = batchResults[1]?.rows?.[0] || null;
+    const tierStats = batchResults[2]?.rows || [];
+    const dueReviewsRow = batchResults[3]?.rows?.[0] || null;
+    const weakTopics = batchResults[4]?.rows || [];
+    const overallStatsRaw = batchResults[5]?.rows?.[0] || null;
+    const mockSummaryRaw = batchResults[6]?.rows?.[0] || null;
+    const recentActivityRows = batchResults[7]?.rows || [];
+    const settingsRows = batchResults[8]?.rows || [];
+    const scopeCountsRaw = batchResults[9]?.rows || [];
 
     const totalLessons = totalLessonsRow ? totalLessonsRow.c : 0;
     const completedLessons = completedLessonsRow ? completedLessonsRow.c : 0;
@@ -514,6 +516,7 @@ app.get('/api/subjects', async (req, res) => {
       ORDER BY s.tier ASC, s.priority_weight DESC
     `).all(req.userId);
 
+    res.setHeader('Cache-Control', 'private, max-age=15, stale-while-revalidate=30');
     res.json(subjects);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -553,6 +556,7 @@ app.get('/api/topics', async (req, res) => {
     query += ' ORDER BY s.tier ASC, t.is_high_yield DESC, t.order_index ASC';
 
     const topics = await db.prepare(query).all(...params);
+    res.setHeader('Cache-Control', 'private, max-age=15, stale-while-revalidate=30');
     res.json(topics);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -846,6 +850,7 @@ app.get('/api/questions', async (req, res) => {
       }
     });
 
+    res.setHeader('Cache-Control', 'private, max-age=30, stale-while-revalidate=60');
     res.json(questions);
   } catch (err) {
     res.status(500).json({ error: err.message });

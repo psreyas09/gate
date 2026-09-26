@@ -19,6 +19,25 @@ const ResourcesView = React.lazy(() => import('./components/ResourcesView').then
 const FormulaVaultView = React.lazy(() => import('./components/FormulaVaultView').then(m => ({ default: m.FormulaVaultView })));
 const GateCalculator = React.lazy(() => import('./components/GateCalculator').then(m => ({ default: m.GateCalculator })));
 
+const viewLoaders: Record<string, () => Promise<any>> = {
+  dashboard: () => import('./components/DashboardView'),
+  lessons: () => import('./components/LessonsView'),
+  spaced_repetition: () => import('./components/SpacedRepetitionView'),
+  practice: () => import('./components/PracticeView'),
+  mock: () => import('./components/MockTestView'),
+  calendar: () => import('./components/CalendarView'),
+  resources: () => import('./components/ResourcesView'),
+  formulas: () => import('./components/FormulaVaultView'),
+  calculator: () => import('./components/GateCalculator'),
+};
+
+export const prefetchView = (tab: string) => {
+  const loader = viewLoaders[tab];
+  if (loader) {
+    loader().catch(() => {});
+  }
+};
+
 const ViewSkeleton = () => (
   <div className="space-y-4 animate-pulse max-w-6xl mx-auto py-2">
     <div className="h-28 rounded-2xl bg-slate-900/60 border border-slate-800" />
@@ -32,8 +51,22 @@ const ViewSkeleton = () => (
 
 export function App() {
   const [currentTab, setCurrentTab] = useState<NavTab>('dashboard');
-  const [overview, setOverview] = useState<OverviewData | null>(null);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [overview, setOverview] = useState<OverviewData | null>(() => {
+    try {
+      const cached = localStorage.getItem('gate_overview_cache');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    try {
+      const cached = localStorage.getItem('gate_current_user');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
   const [isBackupOpen, setIsBackupOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isDeviceSyncOpen, setIsDeviceSyncOpen] = useState(false);
@@ -45,7 +78,14 @@ export function App() {
   const fetchOverview = () => {
     fetch('/api/overview')
       .then(res => res.json())
-      .then(data => setOverview(data))
+      .then(data => {
+        if (data && typeof data === 'object' && !data.error) {
+          setOverview(data);
+          try {
+            localStorage.setItem('gate_overview_cache', JSON.stringify(data));
+          } catch {}
+        }
+      })
       .catch(console.error);
   };
 
@@ -55,16 +95,27 @@ export function App() {
       .then(data => {
         if (!data.isGuest && data.user) {
           setCurrentUser(data.user);
+          try {
+            localStorage.setItem('gate_current_user', JSON.stringify(data.user));
+          } catch {}
         } else {
           setCurrentUser(null);
+          localStorage.removeItem('gate_current_user');
         }
       })
-      .catch(() => setCurrentUser(null));
+      .catch(() => {});
   };
 
   useEffect(() => {
     checkCurrentUser();
     fetchOverview();
+
+    // Idle prefetch primary views for instant zero-latency tab switching
+    const timer = setTimeout(() => {
+      prefetchView('lessons');
+      prefetchView('practice');
+      prefetchView('formulas');
+    }, 600);
 
     // Check for incoming cross-device sync URL payload
     if (window.location.hash.startsWith('#sync=')) {
@@ -78,6 +129,8 @@ export function App() {
         console.error('Error decoding incoming device sync:', err);
       }
     }
+
+    return () => clearTimeout(timer);
   }, []);
 
   const handleApplyIncomingSync = (payload: any) => {
@@ -134,6 +187,8 @@ export function App() {
       // offline logout
     }
     localStorage.removeItem('gate_auth_token');
+    localStorage.removeItem('gate_current_user');
+    localStorage.removeItem('gate_overview_cache');
     setCurrentUser(null);
     fetchOverview();
   };
@@ -167,6 +222,7 @@ export function App() {
         onLogout={handleLogout}
         onOpenDeviceSync={() => setIsDeviceSyncOpen(true)}
         onOpenCalculator={() => setIsGlobalCalcOpen(true)}
+        onPrefetchTab={prefetchView}
       />
 
       {/* Main Content Area */}

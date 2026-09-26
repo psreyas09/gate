@@ -42,7 +42,14 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
   const [mockAnswers, setMockAnswers] = useState<Record<string, any>>({});
   const [markedForReview, setMarkedForReview] = useState<Record<string, boolean>>({});
   const [mockResult, setMockResult] = useState<any>(null);
-  const [mockHistory, setMockHistory] = useState<MockSession[]>([]);
+  const [mockHistory, setMockHistory] = useState<MockSession[]>(() => {
+    try {
+      const cached = localStorage.getItem('gate_mock_history_cache');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [isCalcOpen, setIsCalcOpen] = useState(false);
   const [reviewFilter, setReviewFilter] = useState<'all' | 'incorrect' | 'skipped' | 'flagged'>('all');
   const [showPaletteMobile, setShowPaletteMobile] = useState(false);
@@ -67,7 +74,14 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
   useEffect(() => {
     fetch('/api/mock/history')
       .then(res => res.json())
-      .then(data => setMockHistory(data))
+      .then(data => {
+        if (Array.isArray(data)) {
+          setMockHistory(data);
+          try {
+            localStorage.setItem('gate_mock_history_cache', JSON.stringify(data));
+          } catch {}
+        }
+      })
       .catch(console.error);
   }, [testState]);
 

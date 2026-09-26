@@ -33,6 +33,7 @@ interface NavbarProps {
   onLogout: () => void;
   onOpenDeviceSync: () => void;
   onOpenCalculator?: () => void;
+  onPrefetchTab?: (tab: NavTab) => void;
 }
 
 const TABS: { id: NavTab; label: string; mobileLabel: string; icon: any; badgeKey?: 'dueReviews' }[] = [
@@ -56,6 +57,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogout,
   onOpenDeviceSync,
   onOpenCalculator,
+  onPrefetchTab,
 }) => {
   const isLightMode = overview?.settings?.current_mode === 'light';
 
@@ -195,6 +197,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <button
                     key={tab.id}
                     onClick={() => handleSelectTab(tab.id)}
+                    onMouseEnter={() => onPrefetchTab?.(tab.id)}
+                    onTouchStart={() => onPrefetchTab?.(tab.id)}
                     className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all touch-manipulation ${
                       isActive
                         ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shadow-sm'

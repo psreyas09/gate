@@ -76,6 +76,32 @@ function verifyToken(token) {
   }
 }
 
+// In-memory cache for authenticated users to avoid round-trips to DB on every request
+const userCache = new Map();
+const USER_CACHE_TTL_MS = 60 * 1000; // 60 seconds TTL
+
+function getCachedUser(userId) {
+  const entry = userCache.get(userId);
+  if (!entry) return null;
+  if (Date.now() > entry.expiry) {
+    userCache.delete(userId);
+    return null;
+  }
+  return entry.user;
+}
+
+function setCachedUser(user) {
+  if (!user || !user.id) return;
+  userCache.set(user.id, {
+    user,
+    expiry: Date.now() + USER_CACHE_TTL_MS,
+  });
+}
+
+function invalidateUserCache(userId) {
+  if (userId) userCache.delete(userId);
+}
+
 /**
  * Express middleware that identifies user via Bearer token,
  * or defaults safely to 'guest' (Guest-First principle).
@@ -89,14 +115,22 @@ async function authMiddleware(req, res, next) {
     const token = authHeader.substring(7).trim();
     const tokenData = verifyToken(token);
     if (tokenData && tokenData.userId) {
-      try {
-        const user = await db.prepare('SELECT id, username, email, created_at, last_login_at FROM users WHERE id = ?').get(tokenData.userId);
-        if (user) {
-          req.userId = user.id;
-          req.user = user;
+      // 1. Check in-memory cache first (0ms latency)
+      const cached = getCachedUser(tokenData.userId);
+      if (cached) {
+        req.userId = cached.id;
+        req.user = cached;
+      } else {
+        try {
+          const user = await db.prepare('SELECT id, username, email, created_at, last_login_at FROM users WHERE id = ?').get(tokenData.userId);
+          if (user) {
+            req.userId = user.id;
+            req.user = user;
+            setCachedUser(user);
+          }
+        } catch (err) {
+          console.error('Error in auth middleware user lookup:', err);
         }
-      } catch (err) {
-        console.error('Error in auth middleware user lookup:', err);
       }
     }
   }
@@ -121,4 +155,6 @@ module.exports = {
   verifyToken,
   authMiddleware,
   requireAuth,
+  setCachedUser,
+  invalidateUserCache,
 };

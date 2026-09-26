@@ -22,6 +22,7 @@
   "license": "ISC",
   "dependencies": {
     "@libsql/client": "^0.18.0",
+    "compression": "^1.8.2",
     "concurrently": "^10.0.5",
     "cors": "^2.8.6",
     "express": "^5.2.1"
