@@ -46,6 +46,8 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
   const [isCalcOpen, setIsCalcOpen] = useState(false);
   const [reviewFilter, setReviewFilter] = useState<'all' | 'incorrect' | 'skipped' | 'flagged'>('all');
   const [showPaletteMobile, setShowPaletteMobile] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [starredQuestions, setStarredQuestions] = useState<string[]>(() => {
     try {
       return JSON.parse(localStorage.getItem('gate_bookmarked_questions') || '[]');
@@ -134,20 +136,34 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
   };
 
   const handleSubmitTest = async () => {
-    if (!sessionData) return;
+    if (!sessionData || isSubmitting) return;
+    setIsSubmitting(true);
+    setSubmitError(null);
     const totalTimeSpent = sessionData.durationMinutes * 60 - timeLeftSeconds;
 
     try {
+      const questionIds = (sessionData.questions || []).map(q => q.id);
       const res = await fetch(`/api/mock/${sessionData.sessionId}/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           answers: mockAnswers,
+          questionIds,
           timeSpentSeconds: totalTimeSpent,
           title: sessionData.title,
         }),
       });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || `Server returned ${res.status}`);
+      }
+
       const data = await res.json();
+      if (!data || data.error) {
+        throw new Error(data?.error || 'Invalid server response');
+      }
+
       setMockResult(data);
       setTestState('completed');
 
@@ -159,8 +175,11 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
         });
       }
       onMockCompleted();
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error('Submit mock test error:', err);
+      setSubmitError(err.message || 'Failed to submit test. Please check connection and try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -506,13 +525,30 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
   }
 
   // Result Breakdown
-  if (testState === 'completed' && mockResult) {
-    const totalPenaltyLost = (mockResult.recordedAnswers || []).reduce((acc: number, ra: any) => {
+  if (testState === 'completed') {
+    if (!mockResult || !Array.isArray(mockResult.recordedAnswers)) {
+      return (
+        <div className="p-8 text-center text-slate-300 space-y-4 max-w-md mx-auto">
+          <div className="p-4 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs sm:text-sm">
+            {mockResult?.error || 'Unable to load test results.'}
+          </div>
+          <button
+            onClick={() => setTestState('idle')}
+            className="px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs"
+          >
+            Return to Mock Dashboard
+          </button>
+        </div>
+      );
+    }
+
+    const recordedAnswers = mockResult.recordedAnswers;
+    const totalPenaltyLost = recordedAnswers.reduce((acc: number, ra: any) => {
       return ra.marksObtained < 0 ? acc + Math.abs(ra.marksObtained) : acc;
     }, 0);
-    const grossScore = Math.max(0, mockResult.scoreObtained + totalPenaltyLost).toFixed(2);
+    const grossScore = Math.max(0, (mockResult.scoreObtained || 0) + totalPenaltyLost).toFixed(2);
 
-    const filteredReviewAnswers = (mockResult.recordedAnswers || []).filter((ra: any) => {
+    const filteredReviewAnswers = recordedAnswers.filter((ra: any) => {
       if (reviewFilter === 'incorrect') {
         return ra.marksObtained < 0 || (ra.userAnswer && ra.marksObtained === 0);
       }
@@ -636,7 +672,7 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
                     : 'bg-slate-850 text-slate-400 hover:text-slate-200'
                 }`}
               >
-                All ({mockResult.recordedAnswers.length})
+                All ({recordedAnswers.length})
               </button>
               <button
                 onClick={() => setReviewFilter('incorrect')}

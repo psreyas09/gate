@@ -980,22 +980,36 @@ app.post('/api/mock/start', async (req, res) => {
 // 12. Mock Test: Submit & Score with real GATE Negative Marking
 app.post('/api/mock/:sessionId/submit', async (req, res) => {
   try {
-    const { answers, timeSpentSeconds = 0, title = 'GATE CSE Mock Test' } = req.body;
+    const { answers = {}, questionIds: rawQuestionIds, timeSpentSeconds = 0, title = 'GATE CSE Mock Test' } = req.body;
     const sessionId = req.params.sessionId;
 
-    const questionIds = Object.keys(answers || {});
-    if (questionIds.length === 0) {
-      return res.status(400).json({ error: 'No answers provided' });
+    let questionIds = Array.isArray(rawQuestionIds) && rawQuestionIds.length > 0
+      ? rawQuestionIds
+      : Object.keys(answers || {});
+
+    let questions = [];
+    if (questionIds.length > 0) {
+      const placeholders = questionIds.map(() => '?').join(',');
+      questions = await db.prepare(`
+        SELECT q.*, s.name as subject_name, s.tier, t.name as topic_name
+        FROM questions q
+        JOIN subjects s ON q.subject_id = s.id
+        JOIN topics t ON q.topic_id = t.id
+        WHERE q.id IN (${placeholders})
+      `).all(...questionIds);
     }
 
-    const placeholders = questionIds.map(() => '?').join(',');
-    const questions = await db.prepare(`
-      SELECT q.*, s.name as subject_name, s.tier, t.name as topic_name
-      FROM questions q
-      JOIN subjects s ON q.subject_id = s.id
-      JOIN topics t ON q.topic_id = t.id
-      WHERE q.id IN (${placeholders})
-    `).all(...questionIds);
+    if (questions.length === 0) {
+      // Fallback: load standard qualifying questions so the user still gets a valid zero/unattempted report
+      questions = await db.prepare(`
+        SELECT q.*, s.name as subject_name, s.tier, t.name as topic_name
+        FROM questions q
+        JOIN subjects s ON q.subject_id = s.id
+        JOIN topics t ON q.topic_id = t.id
+        ORDER BY RANDOM()
+        LIMIT 10
+      `).all();
+    }
 
     let totalMarks = 0;
     let scoreObtained = 0;

@@ -350,6 +350,49 @@ was located below the `if (testState === 'idle') return (...)` early return.
 
 ---
 
+## Session 10 — Mock Test Submission Hardening & TCS Virtual Calculator Overhaul
+
+### Context
+User reported two issues:
+1. `POST /api/mock/:sessionId/submit 400 (Bad Request)` followed by `TypeError: Cannot read properties of undefined (reading 'length')` in `MockTestView`.
+2. Calculator was "a little buggy" (closing parentheses caused syntax errors upon evaluation, repeated operator clicks appended extra zeros, float noise in results, and lack of physical keyboard input support).
+
+### Root Causes
+1. **Mock Submit 400 & TypeError:**
+   - When submitting a test with 0 questions answered (e.g. clicking Submit directly or skipping all questions), `Object.keys(answers || {})` was empty.
+   - The backend returned `400 Bad Request: 'No answers provided'` because it assumed `answers` had to have keys.
+   - The client did not verify `res.ok`, resulting in `mockResult = { error: 'No answers provided' }`.
+   - The completed view attempted to read `mockResult.recordedAnswers.length`, throwing a `TypeError`.
+2. **Calculator Bugs:**
+   - Closing parenthesis `)` reset `display = '0'`, causing expressions like `( 5 + 3 ) 0` upon pressing `=`, throwing `SyntaxError`.
+   - Repeated operator clicks (e.g. `+` then `-`) appended `0 -` instead of replacing the operator.
+   - Lack of float precision formatting produced float noise (e.g. `0.30000000000000004`).
+   - No physical keyboard event listener was available for desktop users.
+
+### Changes Made
+
+#### `server/app.js` (`POST /api/mock/:sessionId/submit`)
+- Added support for `questionIds` array in the request body.
+- When `answers` has 0 keys, all questions in the test are properly treated as unattempted (0 marks obtained, 0 penalty, scaled cutoff compared).
+- Gracefully handles empty submissions without returning 400 Bad Request.
+
+#### `client/src/services/localApi.ts`
+- Updated local mock fallback for `/api/mock/:sessionId/submit` to use `body.questionIds` and evaluate all test questions cleanly.
+
+#### `client/src/components/MockTestView.tsx`
+- In `handleSubmitTest`: passed `questionIds: sessionData.questions.map(q => q.id)` in the request payload.
+- Added `isSubmitting` and `submitError` states with UI feedback and retry support.
+- Hardened completed mode: guarded against undefined `mockResult.recordedAnswers` and displayed an error banner if the result payload is ever invalid.
+
+#### `client/src/components/GateCalculator.tsx` *(full rewrite)*
+- Implemented robust calculator state machine with `waitingForOperand` flag.
+- Fixed parenthesis handling with automatic auto-balancing of unclosed `(` upon pressing `=`.
+- Handled operator replacement cleanly when multiple operators are clicked in succession.
+- Added precision formatting with `formatResult()` to eliminate floating-point noise.
+- Added full physical keyboard listener (`0-9`, `+`, `-`, `*`, `/`, `%`, `Enter`, `=`, `Backspace`, `Escape`, `.`, `(`, `)`).
+
+---
+
 ## Architecture Overview
 
 ```

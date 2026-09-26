@@ -834,10 +834,17 @@ export async function handleLocalApi(urlString: string, options?: RequestInit): 
     const mockAnswers = getStore<any[]>(KEYS.MOCK_ANSWERS, []);
     const questionAttempts = getStore<any[]>(KEYS.QUESTION_ATTEMPTS, []);
 
-    Object.entries(answers).forEach(([qId, ansObj]: [string, any]) => {
-      const q = curriculum.questions.find(item => item.id === qId);
-      if (!q) return;
+    const targetQIds = (Array.isArray(body.questionIds) && body.questionIds.length > 0)
+      ? body.questionIds
+      : Object.keys(answers);
 
+    const questionsList = targetQIds.length > 0
+      ? targetQIds.map((id: string) => curriculum.questions.find(item => item.id === id)).filter(Boolean)
+      : curriculum.questions.slice(0, 10);
+
+    questionsList.forEach((q: any) => {
+      const qId = q.id;
+      const ansObj = answers[qId] || {};
       const userAns = ansObj.userAnswer;
       const isAttempted = userAns !== null && userAns !== undefined && userAns !== '';
       const marksAllocated = q.marks || 1.0;
