@@ -6,7 +6,7 @@
     { "src": "/api/(.*)", "dest": "/api" },
     { "src": "/api", "dest": "/api" },
     { "handle": "filesystem" },
-    { "src": "/assets/(.*)", "status": 404 },
+    { "src": "/assets/(.*)", "status": 404, "dest": "/404.html" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
