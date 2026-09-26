@@ -1,18 +1,33 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { Navbar, MobileBottomNav, NavTab } from './components/Navbar';
-import { DashboardView } from './components/DashboardView';
-import { LessonsView } from './components/LessonsView';
-import { SpacedRepetitionView } from './components/SpacedRepetitionView';
-import { PracticeView } from './components/PracticeView';
-import { MockTestView } from './components/MockTestView';
-import { CalendarView } from './components/CalendarView';
-import { ResourcesView } from './components/ResourcesView';
 import { BackupModal } from './components/BackupModal';
 import { AuthModal } from './components/AuthModal';
 import { DeviceSyncModal } from './components/DeviceSyncModal';
 import { OverviewData, User } from './types';
 import { Database, ShieldCheck, Smartphone, CheckCircle2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+
+// Code-split heavy views via React.lazy for optimized initial bundle
+const DashboardView = React.lazy(() => import('./components/DashboardView').then(m => ({ default: m.DashboardView })));
+const LessonsView = React.lazy(() => import('./components/LessonsView').then(m => ({ default: m.LessonsView })));
+const SpacedRepetitionView = React.lazy(() => import('./components/SpacedRepetitionView').then(m => ({ default: m.SpacedRepetitionView })));
+const PracticeView = React.lazy(() => import('./components/PracticeView').then(m => ({ default: m.PracticeView })));
+const MockTestView = React.lazy(() => import('./components/MockTestView').then(m => ({ default: m.MockTestView })));
+const CalendarView = React.lazy(() => import('./components/CalendarView').then(m => ({ default: m.CalendarView })));
+const ResourcesView = React.lazy(() => import('./components/ResourcesView').then(m => ({ default: m.ResourcesView })));
+const FormulaVaultView = React.lazy(() => import('./components/FormulaVaultView').then(m => ({ default: m.FormulaVaultView })));
+const GateCalculator = React.lazy(() => import('./components/GateCalculator').then(m => ({ default: m.GateCalculator })));
+
+const ViewSkeleton = () => (
+  <div className="space-y-4 animate-pulse max-w-6xl mx-auto py-2">
+    <div className="h-28 rounded-2xl bg-slate-900/60 border border-slate-800" />
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="h-40 rounded-xl bg-slate-900/60 border border-slate-800" />
+      <div className="h-40 rounded-xl bg-slate-900/60 border border-slate-800" />
+      <div className="h-40 rounded-xl bg-slate-900/60 border border-slate-800" />
+    </div>
+  </div>
+);
 
 export function App() {
   const [currentTab, setCurrentTab] = useState<NavTab>('dashboard');
@@ -23,6 +38,7 @@ export function App() {
   const [isDeviceSyncOpen, setIsDeviceSyncOpen] = useState(false);
   const [incomingSync, setIncomingSync] = useState<any | null>(null);
   const [drillWeakOnly, setDrillWeakOnly] = useState(false);
+  const [isGlobalCalcOpen, setIsGlobalCalcOpen] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
 
   const fetchOverview = () => {
@@ -149,6 +165,7 @@ export function App() {
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onLogout={handleLogout}
         onOpenDeviceSync={() => setIsDeviceSyncOpen(true)}
+        onOpenCalculator={() => setIsGlobalCalcOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -156,39 +173,45 @@ export function App() {
         ref={mainRef}
         className="flex-1 overflow-y-auto sm:overflow-visible sm:h-auto overscroll-y-contain max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-6 sm:pb-8"
       >
-        {currentTab === 'dashboard' && overview && (
-          <DashboardView
-            overview={overview}
-            onNavigate={handleTabChange}
-            onDrillWeakAreas={handleDrillWeakAreas}
-            currentUser={currentUser}
-            onOpenAuth={() => setIsAuthModalOpen(true)}
-          />
-        )}
+        <Suspense fallback={<ViewSkeleton />}>
+          {currentTab === 'dashboard' && overview && (
+            <DashboardView
+              overview={overview}
+              onNavigate={handleTabChange}
+              onDrillWeakAreas={handleDrillWeakAreas}
+              currentUser={currentUser}
+              onOpenAuth={() => setIsAuthModalOpen(true)}
+            />
+          )}
 
-        {currentTab === 'lessons' && (
-          <LessonsView onProgressUpdated={fetchOverview} />
-        )}
+          {currentTab === 'lessons' && (
+            <LessonsView onProgressUpdated={fetchOverview} />
+          )}
 
-        {currentTab === 'spaced_repetition' && (
-          <SpacedRepetitionView onReviewCompleted={fetchOverview} />
-        )}
+          {currentTab === 'spaced_repetition' && (
+            <SpacedRepetitionView onReviewCompleted={fetchOverview} />
+          )}
 
-        {currentTab === 'practice' && (
-          <PracticeView drillWeakOnly={drillWeakOnly} />
-        )}
+          {currentTab === 'practice' && (
+            <PracticeView drillWeakOnly={drillWeakOnly} />
+          )}
 
-        {currentTab === 'mock' && (
-          <MockTestView onMockCompleted={fetchOverview} />
-        )}
+          {currentTab === 'mock' && (
+            <MockTestView onMockCompleted={fetchOverview} />
+          )}
 
-        {currentTab === 'calendar' && (
-          <CalendarView onSettingsSaved={fetchOverview} />
-        )}
+          {currentTab === 'formulas' && (
+            <FormulaVaultView />
+          )}
 
-        {currentTab === 'resources' && (
-          <ResourcesView />
-        )}
+          {currentTab === 'calendar' && (
+            <CalendarView onSettingsSaved={fetchOverview} />
+          )}
+
+          {currentTab === 'resources' && (
+            <ResourcesView />
+          )}
+        </Suspense>
       </main>
 
       {/* Mobile Bottom Navigation (docked firmly below main on mobile) */}
@@ -201,6 +224,13 @@ export function App() {
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onLogout={handleLogout}
         onOpenDeviceSync={() => setIsDeviceSyncOpen(true)}
+        onOpenCalculator={() => setIsGlobalCalcOpen(true)}
+      />
+
+      {/* Global GATE Virtual Calculator */}
+      <GateCalculator
+        isOpen={isGlobalCalcOpen}
+        onClose={() => setIsGlobalCalcOpen(false)}
       />
 
       {/* Footer (Desktop only - mobile uses dedicated bottom nav & More drawer) */}

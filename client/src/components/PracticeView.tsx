@@ -10,10 +10,13 @@ import {
   XCircle,
   ArrowRight,
   RotateCcw,
-  BookMarked
+  BookMarked,
+  Calculator,
+  Star,
 } from 'lucide-react';
 import { Question, Subject, Topic, Tier } from '../types';
 import { MathText } from './MathText';
+import { GateCalculator } from './GateCalculator';
 
 interface PracticeViewProps {
   initialSubjectId?: string;
@@ -29,7 +32,26 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
   const [pyqOnly, setPyqOnly] = useState<boolean>(false);
   const [highYieldOnly, setHighYieldOnly] = useState<boolean>(false);
   const [interleaving, setInterleaving] = useState<boolean>(false);
+  const [starredOnly, setStarredOnly] = useState<boolean>(false);
+  const [isCalcOpen, setIsCalcOpen] = useState<boolean>(false);
+  const [activeCalcQId, setActiveCalcQId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const [starredQuestions, setStarredQuestions] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('gate_bookmarked_questions') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  const toggleStarQuestion = (qId: string) => {
+    setStarredQuestions(prev => {
+      const updated = prev.includes(qId) ? prev.filter(id => id !== qId) : [...prev, qId];
+      localStorage.setItem('gate_bookmarked_questions', JSON.stringify(updated));
+      return updated;
+    });
+  };
 
   // Attempt state per question: { [qId]: { userAnswer, isSubmitted, result, timeSpent } }
   const [userAnswers, setUserAnswers] = useState<Record<string, any>>({});
@@ -207,13 +229,39 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
           >
             🎯 High-Yield Only
           </button>
+
+          {/* Starred Only Toggle */}
+          <button
+            onClick={() => setStarredOnly(!starredOnly)}
+            className={`w-full sm:w-auto px-3.5 py-2 rounded-lg border font-medium transition-all min-h-[38px] flex items-center justify-center gap-1.5 ${
+              starredOnly
+                ? 'bg-amber-600/30 border-amber-500 text-amber-200 font-semibold'
+                : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Star className={`w-3.5 h-3.5 ${starredOnly ? 'fill-current' : ''}`} />
+            <span>Starred ({starredQuestions.length})</span>
+          </button>
+
+          {/* Calculator Toggle */}
+          <button
+            onClick={() => setIsCalcOpen(!isCalcOpen)}
+            className={`w-full sm:w-auto px-3.5 py-2 rounded-lg border font-medium transition-all min-h-[38px] flex items-center justify-center gap-1.5 ${
+              isCalcOpen
+                ? 'bg-cyan-600/30 border-cyan-500 text-cyan-200 font-semibold'
+                : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Calculator className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Virtual Calc</span>
+          </button>
         </div>
       </div>
 
       {/* Question List */}
       {loading ? (
         <div className="py-16 text-center text-xs text-slate-400">Loading questions...</div>
-      ) : questions.length === 0 ? (
+      ) : questions.filter(q => !starredOnly || starredQuestions.includes(q.id)).length === 0 ? (
         <div className="p-8 sm:p-12 text-center rounded-2xl bg-slate-900 border border-slate-800 text-slate-400 space-y-2">
           <HelpCircle className="w-8 h-8 text-slate-600 mx-auto" />
           <p className="text-sm">No questions match the current filters.</p>
@@ -223,6 +271,7 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
               setSelectedTier('');
               setSelectedType('');
               setPyqOnly(false);
+              setStarredOnly(false);
             }}
             className="text-xs text-cyan-400 underline p-1"
           >
@@ -231,7 +280,9 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
         </div>
       ) : (
         <div className="space-y-4 sm:space-y-6">
-          {questions.map((q, idx) => {
+          {questions
+            .filter(q => !starredOnly || starredQuestions.includes(q.id))
+            .map((q, idx) => {
             const userAnswer = userAnswers[q.id];
             const result = attemptResults[q.id];
             const isSubmitted = Boolean(result);
@@ -262,9 +313,20 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
                     )}
                   </div>
 
-                  <span className="text-[11px] sm:text-xs text-slate-400">
-                    {q.subject_name} • <span className="text-slate-300">{q.topic_name}</span>
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] sm:text-xs text-slate-400">
+                      {q.subject_name} • <span className="text-slate-300">{q.topic_name}</span>
+                    </span>
+                    <button
+                      onClick={() => toggleStarQuestion(q.id)}
+                      className={`p-1 rounded hover:bg-slate-800 transition-colors ${
+                        starredQuestions.includes(q.id) ? 'text-amber-400' : 'text-slate-500 hover:text-slate-300'
+                      }`}
+                      title={starredQuestions.includes(q.id) ? 'Remove Star' : 'Star Question'}
+                    >
+                      <Star className={`w-3.5 h-3.5 ${starredQuestions.includes(q.id) ? 'fill-current' : ''}`} />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Question Text */}
@@ -287,6 +349,19 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
                         placeholder="e.g. 98 or 2.5"
                         className="w-full xs:w-48 px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-white font-mono text-sm focus:outline-none focus:border-cyan-400 disabled:opacity-70 min-h-[44px]"
                       />
+                      {!isSubmitted && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveCalcQId(q.id);
+                            setIsCalcOpen(true);
+                          }}
+                          className="px-2.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors self-start xs:self-auto"
+                        >
+                          <Calculator className="w-3.5 h-3.5" />
+                          <span>Calc</span>
+                        </button>
+                      )}
                       {!isSubmitted && (
                         <button
                           onClick={() => handleSubmitAttempt(q)}
@@ -401,6 +476,17 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
           })}
         </div>
       )}
+
+      {/* Floating GATE Virtual Scientific Calculator */}
+      <GateCalculator
+        isOpen={isCalcOpen}
+        onClose={() => setIsCalcOpen(false)}
+        onInsertValue={(val) => {
+          if (activeCalcQId) {
+            handleNatInput(activeCalcQId, val);
+          }
+        }}
+      />
     </div>
   );
 };

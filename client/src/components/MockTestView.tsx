@@ -10,11 +10,17 @@ import {
   ChevronRight,
   Send,
   RotateCcw,
-  BarChart2
+  BarChart2,
+  Calculator,
+  Star,
+  Clock,
+  TrendingDown,
+  Sparkles,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Question, MockSession } from '../types';
 import { MathText } from './MathText';
+import { GateCalculator } from './GateCalculator';
 
 interface MockTestViewProps {
   onMockCompleted: () => void;
@@ -37,6 +43,23 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
   const [markedForReview, setMarkedForReview] = useState<Record<string, boolean>>({});
   const [mockResult, setMockResult] = useState<any>(null);
   const [mockHistory, setMockHistory] = useState<MockSession[]>([]);
+  const [isCalcOpen, setIsCalcOpen] = useState(false);
+  const [reviewFilter, setReviewFilter] = useState<'all' | 'incorrect' | 'skipped' | 'flagged'>('all');
+  const [starredQuestions, setStarredQuestions] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('gate_bookmarked_questions') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  const toggleStarQuestion = (qId: string) => {
+    setStarredQuestions(prev => {
+      const updated = prev.includes(qId) ? prev.filter(id => id !== qId) : [...prev, qId];
+      localStorage.setItem('gate_bookmarked_questions', JSON.stringify(updated));
+      return updated;
+    });
+  };
 
   useEffect(() => {
     fetch('/api/mock/history')
@@ -239,7 +262,19 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
             </span>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              onClick={() => setIsCalcOpen(prev => !prev)}
+              className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                isCalcOpen
+                  ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
+                  : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white'
+              }`}
+              title="Open GATE Virtual Scientific Calculator"
+            >
+              <Calculator className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="hidden xs:inline">Calculator</span>
+            </button>
             <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-slate-950 border border-slate-700 font-mono text-xs sm:text-sm font-bold text-cyan-400">
               <Timer className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400 shrink-0" />
               <span>{formatTimer(timeLeftSeconds)}</span>
@@ -276,10 +311,21 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
                   </span>
                   <span className="text-[11px] sm:text-xs text-slate-400">{currentQ.subject_name}</span>
                 </div>
-                <div className="text-[10px] sm:text-[11px] text-rose-400 font-medium">
-                  {currentQ.type === 'MCQ'
-                    ? `Penalty: -${currentQ.marks === 1 ? '0.33' : '0.67'}`
-                    : 'No Negative Marking'}
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => toggleStarQuestion(currentQ.id)}
+                    className={`p-1 rounded hover:bg-slate-800 transition-colors ${
+                      starredQuestions.includes(currentQ.id) ? 'text-amber-400' : 'text-slate-500'
+                    }`}
+                    title={starredQuestions.includes(currentQ.id) ? 'Bookmarked' : 'Bookmark question'}
+                  >
+                    <Star className={`w-3.5 h-3.5 ${starredQuestions.includes(currentQ.id) ? 'fill-current' : ''}`} />
+                  </button>
+                  <div className="text-[10px] sm:text-[11px] text-rose-400 font-medium">
+                    {currentQ.type === 'MCQ'
+                      ? `Penalty: -${currentQ.marks === 1 ? '0.33' : '0.67'}`
+                      : 'No Negative Marking'}
+                  </div>
                 </div>
               </div>
 
@@ -291,7 +337,15 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
               {/* Input options */}
               {currentQ.type === 'NAT' ? (
                 <div className="space-y-2 pt-2 sm:pt-3">
-                  <span className="text-xs text-slate-400 block">Type your numeric answer:</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-400 block">Type your numeric answer:</span>
+                    <button
+                      onClick={() => setIsCalcOpen(true)}
+                      className="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 font-semibold"
+                    >
+                      <Calculator className="w-3 h-3" /> Open Calculator
+                    </button>
+                  </div>
                   <input
                     type="text"
                     inputMode="decimal"
@@ -423,12 +477,41 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
             </div>
           </div>
         </div>
+
+        {/* Floating GATE Virtual Scientific Calculator */}
+        <GateCalculator
+          isOpen={isCalcOpen}
+          onClose={() => setIsCalcOpen(false)}
+          onInsertValue={(val) => {
+            if (currentQ.type === 'NAT') {
+              handleNatInput(currentQ.id, val);
+            }
+          }}
+        />
       </div>
     );
   }
 
   // Result Breakdown
   if (testState === 'completed' && mockResult) {
+    const totalPenaltyLost = (mockResult.recordedAnswers || []).reduce((acc: number, ra: any) => {
+      return ra.marksObtained < 0 ? acc + Math.abs(ra.marksObtained) : acc;
+    }, 0);
+    const grossScore = Math.max(0, mockResult.scoreObtained + totalPenaltyLost).toFixed(2);
+
+    const filteredReviewAnswers = (mockResult.recordedAnswers || []).filter((ra: any) => {
+      if (reviewFilter === 'incorrect') {
+        return ra.marksObtained < 0 || (ra.userAnswer && ra.marksObtained === 0);
+      }
+      if (reviewFilter === 'skipped') {
+        return !ra.userAnswer;
+      }
+      if (reviewFilter === 'flagged') {
+        return markedForReview[ra.questionId] || starredQuestions.includes(ra.questionId);
+      }
+      return true;
+    });
+
     return (
       <div className="space-y-6 sm:space-y-8 max-w-4xl mx-auto animate-in fade-in duration-300">
         {/* Score Card Header */}
@@ -476,6 +559,19 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
             </div>
           </div>
 
+          {/* Negative Marking Impact Alert */}
+          {totalPenaltyLost > 0 && (
+            <div className="p-3 sm:p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 max-w-md mx-auto text-left flex items-start gap-2.5 text-xs text-amber-200">
+              <TrendingDown className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <strong className="text-amber-300 block font-semibold">Negative Marking Impact:</strong>
+                <span>
+                  You lost <strong className="text-rose-300">-{totalPenaltyLost.toFixed(2)} marks</strong> to negative penalties on incorrect MCQs. Without guessing penalties, your score would be <strong className="text-white">{grossScore} marks</strong>.
+                </span>
+              </div>
+            </div>
+          )}
+
           <div className="pt-2">
             <button
               onClick={() => setTestState('idle')}
@@ -511,48 +607,116 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
 
         {/* Question-By-Question Detailed Explanations */}
         <div className="p-4 sm:p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4 sm:space-y-5">
-          <h3 className="text-sm font-bold text-slate-200">Question-by-Question Review &amp; Rationale</h3>
-          <div className="space-y-3 sm:space-y-4">
-            {mockResult.recordedAnswers.map((ra: any, idx: number) => (
-              <div
-                key={ra.questionId}
-                className="p-3.5 sm:p-4 rounded-xl bg-slate-800/40 border border-slate-800 space-y-2 text-xs"
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-800">
+            <div>
+              <h3 className="text-sm font-bold text-slate-200">Question-by-Question Review &amp; Rationale</h3>
+              <p className="text-[11px] text-slate-400">Review detailed textbook solutions and bookmark tricky questions for revision</p>
+            </div>
+
+            {/* Filter Pills */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                onClick={() => setReviewFilter('all')}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+                  reviewFilter === 'all'
+                    ? 'bg-slate-700 text-white'
+                    : 'bg-slate-850 text-slate-400 hover:text-slate-200'
+                }`}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-cyan-400">Q{idx + 1}.</span>
-                    <span className="text-slate-400">{ra.subjectName} ({ra.type})</span>
-                  </div>
-                  <div className="font-mono font-semibold">
-                    {ra.marksObtained > 0 ? (
-                      <span className="text-emerald-400">+{ra.marksObtained} Marks</span>
-                    ) : ra.marksObtained < 0 ? (
-                      <span className="text-rose-400">{ra.marksObtained} Marks (Penalty)</span>
-                    ) : (
-                      <span className="text-slate-500">0 Marks</span>
-                    )}
-                  </div>
-                </div>
+                All ({mockResult.recordedAnswers.length})
+              </button>
+              <button
+                onClick={() => setReviewFilter('incorrect')}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+                  reviewFilter === 'incorrect'
+                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                    : 'bg-slate-850 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                ❌ Wrong ({mockResult.incorrectCount})
+              </button>
+              <button
+                onClick={() => setReviewFilter('skipped')}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+                  reviewFilter === 'skipped'
+                    ? 'bg-slate-700 text-slate-200 border border-slate-600'
+                    : 'bg-slate-850 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                ⚪ Skipped ({mockResult.unattemptedCount})
+              </button>
+              <button
+                onClick={() => setReviewFilter('flagged')}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1 transition-colors ${
+                  reviewFilter === 'flagged'
+                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
+                    : 'bg-slate-850 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Star className="w-3 h-3 fill-current" /> Starred
+              </button>
+            </div>
+          </div>
 
-                <div className="text-slate-200 text-sm">
-                  <MathText text={ra.questionText} />
-                </div>
-
-                <div className="pt-2 text-slate-400 flex flex-wrap gap-4 border-t border-slate-800">
-                  <div>
-                    Your Answer: <strong className="text-white">{ra.userAnswer || 'Skipped'}</strong>
+          <div className="space-y-3 sm:space-y-4">
+            {filteredReviewAnswers.map((ra: any, idx: number) => {
+              const isStarred = starredQuestions.includes(ra.questionId);
+              return (
+                <div
+                  key={ra.questionId}
+                  className="p-3.5 sm:p-4 rounded-xl bg-slate-800/40 border border-slate-800 space-y-2 text-xs"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-cyan-400">Q{idx + 1}.</span>
+                      <span className="text-slate-400">{ra.subjectName} ({ra.type})</span>
+                      <button
+                        onClick={() => toggleStarQuestion(ra.questionId)}
+                        className={`p-1 rounded hover:bg-slate-800 transition-colors ${
+                          isStarred ? 'text-amber-400' : 'text-slate-500 hover:text-slate-300'
+                        }`}
+                        title={isStarred ? 'Remove Bookmark' : 'Star for Revision'}
+                      >
+                        <Star className={`w-3.5 h-3.5 ${isStarred ? 'fill-current' : ''}`} />
+                      </button>
+                    </div>
+                    <div className="font-mono font-semibold">
+                      {ra.marksObtained > 0 ? (
+                        <span className="text-emerald-400">+{ra.marksObtained} Marks</span>
+                      ) : ra.marksObtained < 0 ? (
+                        <span className="text-rose-400">{ra.marksObtained} Marks (Penalty)</span>
+                      ) : (
+                        <span className="text-slate-500">0 Marks</span>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    Correct Answer: <strong className="text-emerald-400">{ra.correctAnswer}</strong>
+
+                  <div className="text-slate-200 text-sm">
+                    <MathText text={ra.questionText} />
+                  </div>
+
+                  <div className="pt-2 text-slate-400 flex flex-wrap gap-4 border-t border-slate-800">
+                    <div>
+                      Your Answer: <strong className="text-white">{ra.userAnswer || 'Skipped'}</strong>
+                    </div>
+                    <div>
+                      Correct Answer: <strong className="text-emerald-400">{ra.correctAnswer}</strong>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-slate-950 text-slate-300 mt-2">
+                    <span className="font-semibold text-cyan-400 block mb-1">Explanation:</span>
+                    <MathText text={ra.explanation} />
                   </div>
                 </div>
+              );
+            })}
 
-                <div className="p-3 rounded-lg bg-slate-950 text-slate-300 mt-2">
-                  <span className="font-semibold text-cyan-400 block mb-1">Explanation:</span>
-                  <MathText text={ra.explanation} />
-                </div>
+            {filteredReviewAnswers.length === 0 && (
+              <div className="py-6 text-center text-slate-400 text-xs">
+                No questions found under this filter.
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>

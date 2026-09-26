@@ -8,10 +8,18 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="description" content="GATE CSE 2027 High-Yield Strategy &amp; Practice Platform" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <title>GATE CSE 2027 — High-Yield Prep Platform</title>
   </head>
   <body class="bg-slate-950 text-slate-100 antialiased selection:bg-cyan-500/30 selection:text-cyan-200">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch((err) => console.log('SW registration skipped:', err));
+        });
+      }
+    </script>
   </body>
 </html>

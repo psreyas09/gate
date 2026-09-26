@@ -16,10 +16,12 @@ import {
   User as UserIcon,
   LogOut,
   Smartphone,
+  Sigma,
+  Calculator,
 } from 'lucide-react';
 import { OverviewData, User } from '../types';
 
-export type NavTab = 'dashboard' | 'lessons' | 'spaced_repetition' | 'practice' | 'mock' | 'calendar' | 'resources';
+export type NavTab = 'dashboard' | 'lessons' | 'spaced_repetition' | 'practice' | 'mock' | 'calendar' | 'formulas' | 'resources';
 
 interface NavbarProps {
   currentTab: NavTab;
@@ -30,6 +32,7 @@ interface NavbarProps {
   onOpenAuth: () => void;
   onLogout: () => void;
   onOpenDeviceSync: () => void;
+  onOpenCalculator?: () => void;
 }
 
 const TABS: { id: NavTab; label: string; mobileLabel: string; icon: any; badgeKey?: 'dueReviews' }[] = [
@@ -38,6 +41,7 @@ const TABS: { id: NavTab; label: string; mobileLabel: string; icon: any; badgeKe
   { id: 'spaced_repetition', label: 'Spaced Repetition', mobileLabel: 'Reviews', icon: Brain, badgeKey: 'dueReviews' },
   { id: 'practice', label: 'Practice & PYQ Bank', mobileLabel: 'Practice', icon: CheckSquare },
   { id: 'mock', label: 'Mock Tests (Timed)', mobileLabel: 'Mocks', icon: Timer },
+  { id: 'formulas', label: 'Formula Vault', mobileLabel: 'Formulas', icon: Sigma },
   { id: 'calendar', label: 'Calendar & Schedule', mobileLabel: 'Schedule', icon: Calendar },
   { id: 'resources', label: 'Resources Hub', mobileLabel: 'Resources', icon: Bookmark },
 ];
@@ -51,6 +55,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAuth,
   onLogout,
   onOpenDeviceSync,
+  onOpenCalculator,
 }) => {
   const isLightMode = overview?.settings?.current_mode === 'light';
 
@@ -84,6 +89,18 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Quick Indicators & Sign In */}
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            {/* Calculator Quick Action */}
+            {onOpenCalculator && (
+              <button
+                onClick={onOpenCalculator}
+                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition-colors text-xs font-medium shrink-0"
+                title="Open GATE Virtual Scientific Calculator"
+              >
+                <Calculator className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Calc</span>
+              </button>
+            )}
+
             {/* Study Mode Indicator */}
             <button
               onClick={() => handleSelectTab('calendar')}
@@ -211,6 +228,7 @@ export const MobileBottomNav: React.FC<NavbarProps> = ({
   onOpenAuth,
   onLogout,
   onOpenDeviceSync,
+  onOpenCalculator,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isLightMode = overview?.settings?.current_mode === 'light';
@@ -390,6 +408,37 @@ export const MobileBottomNav: React.FC<NavbarProps> = ({
                   <div className="text-[10px] text-slate-400">Light / Full mode</div>
                 </div>
               </button>
+
+              <button
+                onClick={() => handleSelectTab('formulas')}
+                className={`p-3 rounded-xl border flex items-center gap-2.5 text-left ${
+                  currentTab === 'formulas'
+                    ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
+                    : 'bg-slate-800/60 border-slate-700/60 text-slate-200'
+                }`}
+              >
+                <Sigma className="w-4 h-4 text-cyan-400 shrink-0" />
+                <div>
+                  <div className="font-semibold">Formula Vault</div>
+                  <div className="text-[10px] text-slate-400">High-yield cheatsheets</div>
+                </div>
+              </button>
+
+              {onOpenCalculator && (
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onOpenCalculator();
+                  }}
+                  className="p-3 rounded-xl border bg-slate-800/60 border-slate-700/60 text-slate-200 flex items-center gap-2.5 text-left"
+                >
+                  <Calculator className="w-4 h-4 text-indigo-400 shrink-0" />
+                  <div>
+                    <div className="font-semibold">TCS Calculator</div>
+                    <div className="text-[10px] text-slate-400">Scientific virtual calc</div>
+                  </div>
+                </button>
+              )}
 
               <button
                 onClick={() => handleSelectTab('resources')}

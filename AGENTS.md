@@ -243,6 +243,55 @@ CREATE INDEX IF NOT EXISTS idx_lessons_topic        ON lessons(topic_id);
 
 ---
 
+## Session 7 — Advanced Prep Suite: Virtual Calc, Formula Vault, Daily 5, Mock Diagnostics & PWA
+
+### Changes Made
+
+#### `client/src/components/GateCalculator.tsx` *(created)*
+- Authentic replica of the official GATE TCS iON Virtual Scientific Calculator.
+- Features: Degree/Radian mode, trigonometric & inverse functions (`sin`, `cos`, `tan`, `asin`, `acos`, `atan`, hyperbolic), logarithms (`ln`, `log10`), powers & roots ($x^y$, $x^2$, $x^3$, $\sqrt{x}$, $\sqrt[3]{x}$, $10^x$, $e^x$, $1/x$, $n!$), parentheses, memory registers (`MC`, `MR`, `MS`, `M+`, `M-`), and sign toggling.
+- Supports instant value copying and direct "Insert" into numerical NAT question inputs.
+
+#### `client/src/components/FormulaVaultView.tsx` *(created)*
+- Searchable handbook of core GATE CSE formulas, recurrence bounds, and decision trees.
+- Categorized by subject and preparation scope (`qualify`, `scoring`, `comprehensive`).
+- Includes KaTeX equations, explanations, common exam trap warnings, LaTeX copy button, and star bookmarking.
+
+#### `client/src/components/DailyWarmupModal.tsx` *(created)*
+- "Daily 5 Rapid Fire Challenge" micro-drill with a 5-minute countdown.
+- Curates 5 fast-paced questions (Aptitude, Engg Math, and Core CS).
+- Awards study streak bonus; missed questions are automatically fed into the SuperMemo SM-2 spaced repetition queue.
+
+#### `client/src/components/MockTestView.tsx`
+- Integrated on-screen Virtual Calculator trigger and direct insertion for NAT questions.
+- Question star/bookmarking support during test and review modes.
+- Post-mock diagnostic breakdown: calculates exact marks lost to negative marking penalty ($-\frac{1}{3}$ and $-\frac{2}{3}$).
+- Interactive review filters: *All*, *Wrong (Lost Marks)*, *Skipped*, and *Starred/Marked for Review*.
+
+#### `client/src/components/PracticeView.tsx`
+- Added `⭐ Starred Only` filter toggle and `🧮 Virtual Calc` toggle to question bank.
+- Added Star bookmark button to every question card with persistent local storage.
+- Added direct Virtual Calculator launcher on NAT inputs.
+
+#### `client/src/components/DashboardView.tsx`
+- Added hero banner card for launching the **Daily 5 Rapid Fire Drill**.
+- Added quick reference launchers for the **Formula Vault** and **TCS Scientific Calculator**.
+
+#### `client/src/components/Navbar.tsx`
+- Added `Formula Vault` (`Sigma` icon) tab to desktop navigation and mobile drawer.
+- Added `TCS Calc` quick trigger button to the top bar.
+
+#### `client/src/App.tsx`
+- **Route Code-Splitting:** Dynamic imports for all main views using `React.lazy()` and `Suspense` with an animated pulsing skeleton fallback (`ViewSkeleton`).
+- Added global `GateCalculator` instance with universal launcher support across navigation.
+
+#### Progressive Web App (PWA) & Offline Support
+- `client/public/manifest.webmanifest`: Web app manifest configured with `standalone` display for Android/iOS installability.
+- `client/public/sw.js`: Service worker with cache-first and network-first strategies for offline caching of core app assets and KaTeX fonts.
+- `client/index.html`: Linked web manifest and registered service worker on window load.
+
+---
+
 ## Architecture Overview
 
 ```

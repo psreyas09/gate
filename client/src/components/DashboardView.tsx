@@ -12,10 +12,14 @@ import {
   BookMarked,
   User as UserIcon,
   Sparkles,
-  Trophy
+  Trophy,
+  Sigma,
+  Calculator,
 } from 'lucide-react';
 import { OverviewData, User, TargetScope } from '../types';
 import { NavTab } from './Navbar';
+import { DailyWarmupModal } from './DailyWarmupModal';
+import { GateCalculator } from './GateCalculator';
 
 interface DashboardViewProps {
   overview: OverviewData;
@@ -34,6 +38,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 }) => {
   const initialScope = (overview?.settings?.target_scope as TargetScope) || 'qualify';
   const [activeScope, setActiveScope] = useState<TargetScope>(initialScope);
+  const [isDailyOpen, setIsDailyOpen] = useState(false);
+  const [isCalcOpen, setIsCalcOpen] = useState(false);
 
   useEffect(() => {
     if (overview?.settings?.target_scope) {
@@ -200,6 +206,61 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               {scopeDescriptions[activeScope].gaugeSub}
             </span>
           </div>
+        </div>
+      </div>
+
+      {/* Daily 5 Micro-Challenge & Quick Tools Banner */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4">
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-950/40 via-slate-900 to-indigo-950/40 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md md:col-span-2">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-300 shrink-0">
+              <Zap className="w-5 h-5 fill-current" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-bold text-white">Daily 5 Rapid Fire Drill</h4>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">5 Mins</span>
+              </div>
+              <p className="text-xs text-slate-400 leading-snug">
+                5 rapid questions across Aptitude, Math, and Core CS to maintain your study streak.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsDailyOpen(true)}
+            className="shrink-0 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-slate-950 font-bold text-xs shadow-md shadow-amber-900/30 transition-all flex items-center justify-center gap-1.5"
+          >
+            <span>Start Challenge</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Quick Reference Tools */}
+        <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-2.5 shadow-md">
+          <button
+            onClick={() => onNavigate('formulas' as any)}
+            className="flex-1 p-2.5 rounded-xl bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/60 text-left transition-colors flex items-center gap-2"
+          >
+            <div className="p-2 rounded-lg bg-cyan-500/15 text-cyan-300 shrink-0">
+              <Sigma className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="block text-xs font-bold text-slate-200">Formulas</span>
+              <span className="block text-[10px] text-slate-400">Vault &amp; Cheats</span>
+            </div>
+          </button>
+          <button
+            onClick={() => setIsCalcOpen(true)}
+            className="flex-1 p-2.5 rounded-xl bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/60 text-left transition-colors flex items-center gap-2"
+          >
+            <div className="p-2 rounded-lg bg-indigo-500/15 text-indigo-300 shrink-0">
+              <Calculator className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="block text-xs font-bold text-slate-200">TCS Calc</span>
+              <span className="block text-[10px] text-slate-400">Scientific</span>
+            </div>
+          </button>
         </div>
       </div>
 
@@ -401,6 +462,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Daily 5 Micro-Challenge Modal */}
+      <DailyWarmupModal
+        isOpen={isDailyOpen}
+        onClose={() => setIsDailyOpen(false)}
+        onCompleted={() => {
+          // re-trigger dashboard fetch or continue
+        }}
+      />
+
+      {/* Standalone GATE Virtual Calculator */}
+      <GateCalculator
+        isOpen={isCalcOpen}
+        onClose={() => setIsCalcOpen(false)}
+      />
     </div>
   );
 };

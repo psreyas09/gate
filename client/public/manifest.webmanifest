@@ -1,0 +1,18 @@
+{
+  "name": "GATE CSE 2027 Preparation Platform",
+  "short_name": "GATE 2027",
+  "description": "High-Yield Strategy, SM-2 Spaced Repetition, and Practice Bank for GATE CSE 2027",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
