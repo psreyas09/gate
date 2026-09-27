@@ -7,24 +7,53 @@ interface GateCalculatorProps {
   onInsertValue?: (val: string) => void;
 }
 
+type LastInputType = 'none' | 'digit' | 'operator' | 'unary' | 'equals' | 'parenOpen' | 'parenClose';
+
 function cleanMathEvaluate(expr: string): number {
-  let cleaned = expr
+  let cleaned = expr.trim();
+
+  // If expression contains '=', recover the active calculation portion after the last '='
+  if (cleaned.includes('=')) {
+    const parts = cleaned.split('=');
+    const after = parts[parts.length - 1].trim();
+    cleaned = after ? after : (parts[parts.length - 2]?.trim() || '');
+  }
+
+  cleaned = cleaned
     .replace(/×/g, '*')
     .replace(/÷/g, '/')
+    .replace(/−/g, '-')
     .replace(/mod/g, '%')
     .replace(/π/g, `(${Math.PI})`)
     .replace(/\^/g, '**');
 
-  // Strip trailing incomplete operators if any
-  cleaned = cleaned.trim().replace(/[\+\-\*\/%^]+$/, '').trim();
+  // Strip trailing operators and trailing open parentheses
+  cleaned = cleaned.replace(/[\+\-\*\/%^(\s]+$/, '').trim();
   if (!cleaned) throw new Error('Empty expression');
 
-  // Auto-balance open parentheses
+  // Handle implicit multiplication: e.g. "5(2)" -> "5*(2)", "(2)5" -> "(2)*5", "(2)(3)" -> "(2)*(3)"
+  cleaned = cleaned.replace(/(\d)\s*\(/g, '$1*(');
+  cleaned = cleaned.replace(/\)\s*(\d)/g, ')*$1');
+  cleaned = cleaned.replace(/\)\s*\(/g, ')*(');
+
+  // Fix empty parentheses "()" -> "(0)"
+  cleaned = cleaned.replace(/\(\s*\)/g, '(0)');
+
+  // Auto-balance parentheses
   const openCount = (cleaned.match(/\(/g) || []).length;
   const closeCount = (cleaned.match(/\)/g) || []).length;
   if (openCount > closeCount) {
     cleaned += ')'.repeat(openCount - closeCount);
+  } else if (closeCount > openCount) {
+    const diff = closeCount - openCount;
+    cleaned = cleaned.replace(/\)+$/, (match) => match.slice(diff));
   }
+
+  // Handle leading zeros in numbers to prevent octal literal syntax error: e.g. -03 -> -3, 007 -> 7
+  cleaned = cleaned.replace(/([^\w.]|^)0+([1-9][0-9]*)/g, '$1$2');
+
+  // Fix negative base with exponentiation e.g. -2 ** 3 -> (-2) ** 3 (disallowed in ES strict mode)
+  cleaned = cleaned.replace(/(^|[(+\-*/%])\s*-\s*([0-9.]+)\s*\*\*/g, '$1(-$2)**');
 
   // Ensure safe expression characters
   if (!/^[0-9+\-*/%.() eE]+$/.test(cleaned)) {
@@ -55,96 +84,166 @@ export const GateCalculator: React.FC<GateCalculatorProps> = ({
 }) => {
   const [display, setDisplay] = useState('0');
   const [expression, setExpression] = useState('');
-  const [waitingForOperand, setWaitingForOperand] = useState(false);
+  const [overwrite, setOverwrite] = useState(false);
+  const [lastInput, setLastInput] = useState<LastInputType>('none');
   const [memory, setMemory] = useState(0);
   const [isRad, setIsRad] = useState(true);
   const [isInv, setIsInv] = useState(false);
+  const [isHyp, setIsHyp] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const handleDigit = useCallback((d: string) => {
+    const isCompleted = lastInput === 'equals' || expression.trim().endsWith('=');
     setDisplay((prev) => {
-      if (waitingForOperand || prev === '0' || prev === 'Error') {
+      if (prev === 'Error' || isCompleted) {
         return d;
       }
-      return prev + d;
+      if (overwrite || prev === '0') {
+        return d;
+      }
+      if (prev === '-0') {
+        return '-' + d;
+      }
+      return prev.length < 24 ? prev + d : prev;
     });
-    setWaitingForOperand(false);
-  }, [waitingForOperand]);
+
+    if (display === 'Error' || isCompleted) {
+      setExpression('');
+    }
+    setOverwrite(false);
+    setLastInput('digit');
+  }, [display, expression, lastInput, overwrite]);
 
   const handleDecimal = useCallback(() => {
-    setDisplay((prev) => {
-      if (waitingForOperand || prev === 'Error') {
-        return '0.';
-      }
-      if (!prev.includes('.')) {
-        return prev + '.';
-      }
-      return prev;
-    });
-    setWaitingForOperand(false);
-  }, [waitingForOperand]);
+    const isCompleted = lastInput === 'equals' || expression.trim().endsWith('=');
+    if (display === 'Error' || isCompleted) {
+      setDisplay('0.');
+      setExpression('');
+      setOverwrite(false);
+      setLastInput('digit');
+      return;
+    }
+    if (overwrite) {
+      setDisplay('0.');
+    } else if (display === '-0') {
+      setDisplay('-0.');
+    } else if (!display.includes('.')) {
+      setDisplay((prev) => prev + '.');
+    }
+    setOverwrite(false);
+    setLastInput('digit');
+  }, [display, expression, lastInput, overwrite]);
 
   const handleClear = useCallback(() => {
     setDisplay('0');
     setExpression('');
-    setWaitingForOperand(false);
+    setOverwrite(false);
+    setLastInput('none');
   }, []);
 
   const handleClearEntry = useCallback(() => {
     setDisplay('0');
-    setWaitingForOperand(false);
-  }, []);
+    setOverwrite(false);
+    if (lastInput === 'equals' || expression.trim().endsWith('=') || display === 'Error') {
+      setExpression('');
+      setLastInput('none');
+    }
+  }, [display, expression, lastInput]);
 
   const handleBackspace = useCallback(() => {
+    if (display === 'Error' || lastInput === 'equals' || expression.trim().endsWith('=')) {
+      setDisplay('0');
+      setExpression('');
+      setLastInput('none');
+      return;
+    }
     setDisplay((prev) => {
-      if (waitingForOperand || prev === 'Error') {
-        return '0';
-      }
       if (prev.length > 1) {
         const sliced = prev.slice(0, -1);
-        return sliced === '-' ? '0' : sliced;
+        return (sliced === '-' || sliced === '-0') ? '0' : sliced;
       }
       return '0';
     });
-  }, [waitingForOperand]);
+  }, [display, expression, lastInput]);
 
   const handleToggleSign = useCallback(() => {
+    if (display === 'Error') return;
+
+    if (lastInput === 'equals' || expression.trim().endsWith('=')) {
+      setExpression('');
+    }
+
+    if (overwrite && lastInput === 'operator') {
+      // Starting a negative number for the next operand
+      setDisplay('-0');
+      setOverwrite(false);
+      setLastInput('digit');
+      return;
+    }
+
     setDisplay((prev) => {
-      if (prev === '0' || prev === 'Error') return prev;
+      if (prev === '0') return '-0';
+      if (prev === '-0') return '0';
       return prev.startsWith('-') ? prev.substring(1) : '-' + prev;
     });
-  }, []);
+  }, [display, expression, lastInput, overwrite]);
 
   const handleOperator = useCallback((op: string) => {
     if (display === 'Error') return;
 
-    setExpression((prevExpr) => {
-      const trimmed = prevExpr.trim();
-      // If waiting for operand and previous expression ends with an operator, replace it
-      if (waitingForOperand && /[\+\-\*\/%^]$/.test(trimmed)) {
-        return trimmed.slice(0, -1) + `${op} `;
-      }
-      if (trimmed.endsWith(')')) {
+    // Continuing calculation directly after equals (e.g. "8 + ")
+    if (lastInput === 'equals' || expression.trim().endsWith('=')) {
+      setExpression(`${display} ${op} `);
+      setOverwrite(true);
+      setLastInput('operator');
+      return;
+    }
+
+    // Replacing previous operator if clicked consecutively
+    if (lastInput === 'operator') {
+      setExpression((prev) => {
+        const trimmed = prev.trim();
+        return trimmed.replace(/(\bmod\b|[\+\-\*\/%^])$/, '').trimEnd() + ` ${op} `;
+      });
+      setOverwrite(true);
+      return;
+    }
+
+    // Normal operator entry
+    setExpression((prev) => {
+      const trimmed = prev.trim();
+      if (lastInput === 'parenClose') {
         return `${trimmed} ${op} `;
       }
       return `${trimmed} ${display} ${op} `.trimStart();
     });
 
-    setWaitingForOperand(true);
-  }, [display, waitingForOperand]);
+    setOverwrite(true);
+    setLastInput('operator');
+  }, [display, expression, lastInput]);
 
   const handleParenthesis = useCallback((p: '(' | ')') => {
+    if (display === 'Error' || lastInput === 'equals' || expression.trim().endsWith('=')) {
+      setExpression('');
+      setDisplay('0');
+      setLastInput('none');
+    }
+
     if (p === '(') {
       setExpression((prev) => {
         const trimmed = prev.trim();
-        if (waitingForOperand || !trimmed) {
+        if (lastInput === 'operator' || !trimmed) {
           return `${trimmed} ( `.trimStart();
+        }
+        if (lastInput === 'parenClose') {
+          return `${trimmed} * ( `;
         }
         return `${trimmed} ${display} * ( `.trimStart();
       });
       setDisplay('0');
-      setWaitingForOperand(true);
+      setOverwrite(true);
+      setLastInput('parenOpen');
     } else {
       // Closing parenthesis
       setExpression((prev) => {
@@ -153,14 +252,15 @@ export const GateCalculator: React.FC<GateCalculatorProps> = ({
         const closeCount = (trimmed.match(/\)/g) || []).length;
         if (openCount <= closeCount) return prev; // No open parenthesis to close
 
-        if (waitingForOperand && trimmed.endsWith(')')) {
+        if (lastInput === 'parenClose') {
           return `${trimmed} ) `;
         }
         return `${trimmed} ${display} ) `;
       });
-      setWaitingForOperand(true);
+      setOverwrite(true);
+      setLastInput('parenClose');
     }
-  }, [display, waitingForOperand]);
+  }, [display, lastInput]);
 
   const factorial = (n: number): number => {
     if (n < 0 || !Number.isInteger(n) || n > 170) return NaN;
@@ -171,6 +271,9 @@ export const GateCalculator: React.FC<GateCalculatorProps> = ({
   };
 
   const handleScientific = useCallback((fn: string) => {
+    if (lastInput === 'equals') {
+      setExpression('');
+    }
     const val = parseFloat(display);
     if (isNaN(val)) return;
 
@@ -180,41 +283,38 @@ export const GateCalculator: React.FC<GateCalculatorProps> = ({
 
     switch (fn) {
       case 'sin':
-        if (isInv) {
-          if (val < -1 || val > 1) { res = NaN; break; }
-          res = fromAngle(Math.asin(val));
+        if (isHyp) {
+          res = isInv ? Math.asinh(val) : Math.sinh(val);
+        } else if (isInv) {
+          res = (val < -1 || val > 1) ? NaN : fromAngle(Math.asin(val));
         } else {
-          res = Math.abs(toAngle(val) % Math.PI) < 1e-12 ? 0 : Math.sin(toAngle(val));
+          res = Math.abs(val % (isRad ? Math.PI : 180)) < 1e-6 ? 0 : Math.sin(toAngle(val));
         }
         break;
       case 'cos':
-        if (isInv) {
-          if (val < -1 || val > 1) { res = NaN; break; }
-          res = fromAngle(Math.acos(val));
+        if (isHyp) {
+          res = isInv ? (val >= 1 ? Math.acosh(val) : NaN) : Math.cosh(val);
+        } else if (isInv) {
+          res = (val < -1 || val > 1) ? NaN : fromAngle(Math.acos(val));
         } else {
-          res = Math.abs((toAngle(val) - Math.PI / 2) % Math.PI) < 1e-12 ? 0 : Math.cos(toAngle(val));
+          res = (!isRad && Math.abs((val - 90) % 180) < 1e-6) ? 0 : Math.cos(toAngle(val));
         }
         break;
       case 'tan':
-        if (isInv) {
+        if (isHyp) {
+          res = isInv ? (Math.abs(val) < 1 ? Math.atanh(val) : NaN) : Math.tanh(val);
+        } else if (isInv) {
           res = fromAngle(Math.atan(val));
         } else {
-          // Check for 90, 270 deg
+          // Check for 90, 270 deg or pi/2 rad asymptote
           if (!isRad && Math.abs((val - 90) % 180) < 1e-6) {
+            res = NaN;
+          } else if (isRad && Math.abs((Math.abs(val) - Math.PI / 2) % Math.PI) < 1e-12) {
             res = NaN;
           } else {
             res = Math.tan(toAngle(val));
           }
         }
-        break;
-      case 'sinh':
-        res = Math.sinh(val);
-        break;
-      case 'cosh':
-        res = Math.cosh(val);
-        break;
-      case 'tanh':
-        res = Math.tanh(val);
         break;
       case 'ln':
         res = val > 0 ? Math.log(val) : NaN;
@@ -223,16 +323,10 @@ export const GateCalculator: React.FC<GateCalculatorProps> = ({
         res = val > 0 ? Math.log10(val) : NaN;
         break;
       case 'sqrt':
-        res = val >= 0 ? Math.sqrt(val) : NaN;
-        break;
-      case 'cbrt':
-        res = Math.cbrt(val);
+        res = isInv ? Math.cbrt(val) : (val >= 0 ? Math.sqrt(val) : NaN);
         break;
       case 'sqr':
-        res = val * val;
-        break;
-      case 'cube':
-        res = val * val * val;
+        res = isInv ? val * val * val : val * val;
         break;
       case 'inv':
         res = val !== 0 ? 1 / val : NaN;
@@ -258,14 +352,18 @@ export const GateCalculator: React.FC<GateCalculatorProps> = ({
 
     if (isNaN(res) || !isFinite(res)) {
       setDisplay('Error');
+      setExpression('');
+      setLastInput('none');
     } else {
       setDisplay(formatResult(res));
+      setOverwrite(true);
+      setLastInput('unary');
     }
-    setWaitingForOperand(true);
-  }, [display, isRad, isInv]);
+  }, [display, isRad, isInv, isHyp, lastInput]);
 
   const handleEquals = useCallback(() => {
     if (display === 'Error') return;
+    if (lastInput === 'equals' || expression.trim().endsWith('=')) return; // Repeated equals does not error
 
     let fullExpr = '';
     const trimmed = expression.trim();
@@ -275,10 +373,9 @@ export const GateCalculator: React.FC<GateCalculatorProps> = ({
       return;
     }
 
-    if (trimmed.endsWith(')')) {
-      fullExpr = waitingForOperand ? trimmed : `${trimmed} * ${display}`;
-    } else if (waitingForOperand) {
-      // Trailing operator e.g. "5 +" -> evaluate with current display
+    if (lastInput === 'parenClose') {
+      fullExpr = trimmed;
+    } else if (lastInput === 'operator') {
       fullExpr = `${trimmed} ${display}`;
     } else {
       fullExpr = `${trimmed} ${display}`;
@@ -288,12 +385,14 @@ export const GateCalculator: React.FC<GateCalculatorProps> = ({
       const result = cleanMathEvaluate(fullExpr);
       setDisplay(formatResult(result));
       setExpression(`${fullExpr} =`);
-      setWaitingForOperand(true);
+      setOverwrite(true);
+      setLastInput('equals');
     } catch {
       setDisplay('Error');
-      setWaitingForOperand(true);
+      setOverwrite(true);
+      setLastInput('equals');
     }
-  }, [display, expression, waitingForOperand]);
+  }, [display, expression, lastInput]);
 
   const handleMemory = useCallback((op: 'MC' | 'MR' | 'MS' | 'M+' | 'M-') => {
     const val = parseFloat(display) || 0;
@@ -304,7 +403,8 @@ export const GateCalculator: React.FC<GateCalculatorProps> = ({
         break;
       case 'MR':
         setDisplay(formatResult(memory));
-        setWaitingForOperand(true);
+        setOverwrite(true);
+        setLastInput('unary');
         break;
       case 'MS':
         setMemory(val);
@@ -354,6 +454,12 @@ export const GateCalculator: React.FC<GateCalculatorProps> = ({
       } else if (key === '+' || key === '-' || key === '*' || key === '/') {
         e.preventDefault();
         handleOperator(key);
+      } else if (key === 'x' || key === 'X') {
+        e.preventDefault();
+        handleOperator('*');
+      } else if (key === '^') {
+        e.preventDefault();
+        handleOperator('^');
       } else if (key === '%') {
         e.preventDefault();
         handleOperator('mod');
@@ -369,19 +475,25 @@ export const GateCalculator: React.FC<GateCalculatorProps> = ({
       } else if (key === 'Escape') {
         e.preventDefault();
         handleClear();
+      } else if ((key === 'c' || key === 'C') && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        handleClear();
+      } else if (key === 'n' || key === 'N' || key === 'F9') {
+        e.preventDefault();
+        handleToggleSign();
       }
     };
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, isMinimized, handleDigit, handleDecimal, handleOperator, handleParenthesis, handleEquals, handleBackspace, handleClear]);
+  }, [isOpen, isMinimized, handleDigit, handleDecimal, handleOperator, handleParenthesis, handleEquals, handleBackspace, handleClear, handleToggleSign]);
 
   if (!isOpen) return null;
 
   return (
     <div
       id="gate-virtual-calc"
-      className="fixed bottom-4 right-4 z-50 shadow-2xl rounded-2xl border border-cyan-500/40 bg-slate-900/98 text-slate-100 font-mono w-[340px] xs:w-[380px] overflow-hidden backdrop-blur-xl animate-in slide-in-from-bottom-5 duration-200"
+      className="fixed bottom-2 sm:bottom-4 right-2 sm:right-4 z-50 shadow-2xl rounded-2xl border border-cyan-500/40 bg-slate-900/98 text-slate-100 font-mono w-[92vw] max-w-[380px] xs:w-[380px] overflow-hidden backdrop-blur-xl animate-in slide-in-from-bottom-5 duration-200"
     >
       {/* Header bar */}
       <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-slate-900 via-slate-850 to-indigo-950/80 border-b border-slate-800 text-xs select-none">
@@ -400,6 +512,7 @@ export const GateCalculator: React.FC<GateCalculatorProps> = ({
         </div>
         <div className="flex items-center gap-1">
           <button
+            type="button"
             onClick={() => setIsMinimized(!isMinimized)}
             className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200"
             title={isMinimized ? 'Expand' : 'Minimize'}
@@ -407,6 +520,7 @@ export const GateCalculator: React.FC<GateCalculatorProps> = ({
             <Minus className="w-3.5 h-3.5" />
           </button>
           <button
+            type="button"
             onClick={onClose}
             className="p-1 rounded hover:bg-rose-500/20 text-slate-400 hover:text-rose-400"
             title="Close"
@@ -456,6 +570,16 @@ export const GateCalculator: React.FC<GateCalculatorProps> = ({
                 >
                   INV
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setIsHyp(!isHyp)}
+                  className={`px-1.5 py-0.5 rounded font-bold transition-colors ${
+                    isHyp ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'text-slate-500 hover:text-slate-300'
+                  }`}
+                  title="Hyperbolic trigonometric functions"
+                >
+                  HYP
+                </button>
               </div>
               <div className="flex items-center gap-1">
                 <button
@@ -493,17 +617,35 @@ export const GateCalculator: React.FC<GateCalculatorProps> = ({
             <button type="button" onClick={handleBackspace} className="p-1.5 rounded bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/40 text-rose-300 font-bold">⌫</button>
 
             {/* Row 1 */}
-            <button type="button" onClick={() => handleScientific('sin')} className="p-1.5 rounded bg-slate-850 hover:bg-slate-800 text-cyan-300">{isInv ? 'asin' : 'sin'}</button>
-            <button type="button" onClick={() => handleScientific('cos')} className="p-1.5 rounded bg-slate-850 hover:bg-slate-800 text-cyan-300">{isInv ? 'acos' : 'cos'}</button>
-            <button type="button" onClick={() => handleScientific('tan')} className="p-1.5 rounded bg-slate-850 hover:bg-slate-800 text-cyan-300">{isInv ? 'atan' : 'tan'}</button>
+            <button
+              type="button"
+              onClick={() => handleScientific('sin')}
+              className="p-1.5 rounded bg-slate-850 hover:bg-slate-800 text-cyan-300"
+            >
+              {isHyp ? (isInv ? 'asinh' : 'sinh') : (isInv ? 'asin' : 'sin')}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleScientific('cos')}
+              className="p-1.5 rounded bg-slate-850 hover:bg-slate-800 text-cyan-300"
+            >
+              {isHyp ? (isInv ? 'acosh' : 'cosh') : (isInv ? 'acos' : 'cos')}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleScientific('tan')}
+              className="p-1.5 rounded bg-slate-850 hover:bg-slate-800 text-cyan-300"
+            >
+              {isHyp ? (isInv ? 'atanh' : 'tanh') : (isInv ? 'atan' : 'tan')}
+            </button>
             <button type="button" onClick={handleClearEntry} className="p-1.5 rounded bg-amber-950/40 hover:bg-amber-900/60 border border-amber-800/40 text-amber-300 font-bold">CE</button>
             <button type="button" onClick={handleClear} className="p-1.5 rounded bg-rose-950/50 hover:bg-rose-900/70 border border-rose-800/50 text-rose-300 font-bold">C</button>
             <button type="button" onClick={handleToggleSign} className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold">±</button>
 
             {/* Row 2 */}
-            <button type="button" onClick={() => handleScientific('ln')} className="p-1.5 rounded bg-slate-850 hover:bg-slate-800 text-cyan-300">ln</button>
-            <button type="button" onClick={() => handleScientific('log')} className="p-1.5 rounded bg-slate-850 hover:bg-slate-800 text-cyan-300">log</button>
-            <button type="button" onClick={() => handleScientific('sqrt')} className="p-1.5 rounded bg-slate-850 hover:bg-slate-800 text-cyan-300">√</button>
+            <button type="button" onClick={() => handleScientific('ln')} className="p-1.5 rounded bg-slate-850 hover:bg-slate-800 text-cyan-300">{isInv ? 'eˣ' : 'ln'}</button>
+            <button type="button" onClick={() => handleScientific('log')} className="p-1.5 rounded bg-slate-850 hover:bg-slate-800 text-cyan-300">{isInv ? '10ˣ' : 'log'}</button>
+            <button type="button" onClick={() => handleScientific('sqrt')} className="p-1.5 rounded bg-slate-850 hover:bg-slate-800 text-cyan-300">{isInv ? '∛' : '√'}</button>
             <button type="button" onClick={() => handleDigit('7')} className="p-2 rounded bg-slate-950 hover:bg-slate-800 text-white font-bold text-xs">7</button>
             <button type="button" onClick={() => handleDigit('8')} className="p-2 rounded bg-slate-950 hover:bg-slate-800 text-white font-bold text-xs">8</button>
             <button type="button" onClick={() => handleDigit('9')} className="p-2 rounded bg-slate-950 hover:bg-slate-800 text-white font-bold text-xs">9</button>
@@ -517,7 +659,7 @@ export const GateCalculator: React.FC<GateCalculatorProps> = ({
             <button type="button" onClick={() => handleDigit('6')} className="p-2 rounded bg-slate-950 hover:bg-slate-800 text-white font-bold text-xs">6</button>
 
             {/* Row 4 */}
-            <button type="button" onClick={() => handleScientific('sqr')} className="p-1.5 rounded bg-slate-850 hover:bg-slate-800 text-cyan-300">x²</button>
+            <button type="button" onClick={() => handleScientific('sqr')} className="p-1.5 rounded bg-slate-850 hover:bg-slate-800 text-cyan-300">{isInv ? 'x³' : 'x²'}</button>
             <button type="button" onClick={() => handleScientific('inv')} className="p-1.5 rounded bg-slate-850 hover:bg-slate-800 text-cyan-300">1/x</button>
             <button type="button" onClick={() => handleScientific('fact')} className="p-1.5 rounded bg-slate-850 hover:bg-slate-800 text-cyan-300">n!</button>
             <button type="button" onClick={() => handleDigit('1')} className="p-2 rounded bg-slate-950 hover:bg-slate-800 text-white font-bold text-xs">1</button>

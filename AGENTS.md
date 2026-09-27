@@ -513,6 +513,66 @@ Browser threw MIME error `Expected a JavaScript-or-Wasm module script but the se
 
 ---
 
+## Session 14 — Comprehensive GATE TCS iON Calculator Overhaul & Multi-Value Operation Fixes
+
+### Context
+User reported: *"the calc have some issues if i try to do operation using multiple values got error check if there is any other error for calc exists also"*.
+
+### Root Causes Identified
+1. **Calculation after Equals (`=`) Crashes with `Error`:**
+   - In `handleEquals`, `setExpression(`${fullExpr} =`)` set the expression string to end with an `=` sign.
+   - If the user performed any subsequent operation (e.g. `+ 2 =` to continue calculating with the result, or started a new calculation like `9 + 1 =`), the `=` sign was never cleared from `expression`, producing strings like `5 + 3 = 8 + 2` or `5 + 3 = 9 + 1`.
+   - `cleanMathEvaluate` threw a syntax/character error on `=`.
+   - Pressing `=` twice consecutively similarly evaluated `5 + 3 = 8` and crashed with `Error`.
+2. **Unary Scientific Functions in Chained Expressions Dropped Operands:**
+   - `handleScientific` set `waitingForOperand = true`.
+   - When the user then pressed a binary operator (e.g. `5 + 9 sqrt + 2 =`), `handleOperator` saw `waitingForOperand === true` and that `expression` ended with `+`, so it treated the operator as a replacement and completely discarded the unary result (`3`) from the expression.
+3. **`mod` Operator Replacement Bug:**
+   - The regex `/[\+\-\*\/%^]$/` only matched single-character operators. Pressing `mod` then `+` or `-` failed to match and created invalid syntax expressions like `5 mod 5 +`.
+4. **Strict Mode Octal Literal Bug with Negative Inputs (`-03`):**
+   - Entering a negative number right after an operator or sign toggle (`±`) initialized the display with `-0`.
+   - Typing `3` appended to `-0` creating `-03`.
+   - In JavaScript strict mode, leading zero numbers are parsed as legacy octal literals, immediately throwing `SyntaxError: Octal literals are not allowed in strict mode`.
+5. **Parentheses Syntax Errors & Implicit Multiplication:**
+   - Expressions like `(2 + 3)(4 + 5)`, `3(4 + 5)`, or `(4 + 5)3` threw JavaScript `TypeError: (2+3) is not a function` because implicit multiplication wasn't transformed to `*`.
+   - Trailing open parentheses (e.g. `5 + (`) produced empty `()` upon auto-balancing, causing `SyntaxError: Unexpected token ')'`.
+6. **ES6 Strict Mode Disallowed Exponentiation on Negative Bases:**
+   - In JavaScript, `-2 ** 3` or `5 + -2 ** 3` without explicit parentheses throws `SyntaxError: Unary operator used immediately before exponentiation expression`.
+7. **Missing Functionality:**
+   - Hyperbolic functions (`sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh`) and cube roots/powers ($\sqrt[3]{x}$, $x^3$) were inaccessible from the UI buttons.
+   - Caret `^` and `%` (mod) keyboard shortcuts were unhandled.
+
+### Changes Made
+
+#### `client/src/components/GateCalculator.tsx`
+- **Clean State Machine:**
+  - Replaced ambiguous `waitingForOperand` with explicit `overwrite` boolean and `lastInput: 'none' | 'digit' | 'operator' | 'unary' | 'equals' | 'parenOpen' | 'parenClose'`.
+  - Pressing an operator after `=` automatically carries the current result forward as the initial operand (`${display} ${op} `).
+  - Pressing a digit or `(` after `=` cleanly starts a fresh calculation.
+  - Pressing `=` repeatedly is an idempotent safe no-op.
+- **Unary Scientific Operations in Multi-Step Calculations:**
+  - When unary functions (`sqrt`, `sin`, `cos`, `sqr`, `n!`, `pi`, `e`, etc.) or memory recall (`MR`) execute, `lastInput` is marked as `'unary'`, ensuring subsequent operators correctly append the unary result as the operand (e.g. `5 + 9 sqrt + 2 =` evaluates to `10`).
+- **Robust `cleanMathEvaluate`:**
+  - Strips trailing `=`, operators, and empty parentheses.
+  - Inserts explicit `*` for implicit multiplications: `(\d)\s*\(` $\to$ `$1*(`, `\)\s*(\d)` $\to$ `)*$1`, `\)\s*\(` $\to$ `)*(`.
+  - Sanitizes leading zeros on numbers (`-03` $\to$ `-3`, `007` $\to$ `7`) to prevent octal syntax errors.
+  - Automatically wraps negative bases before exponentiation (`(^|[+\-*/%])\s*-\s*([0-9.]+)\s*\*\*` $\to$ `$1(-$2)**`).
+  - Converts Unicode minus `−` to ASCII hyphen `-`.
+- **Octal & Sign Toggle (`±`) Fix:**
+  - `handleDigit` handles `-0` by transforming it into `'-' + d` rather than `'-0' + d`.
+  - Supports entering negative numbers after any operator.
+- **Operator Replacement:**
+  - Correctly replaces `mod`, `^`, `+`, `-`, `*`, `/` when operators are clicked in succession.
+- **Added HYP Mode & Full Scientific Set:**
+  - Added interactive `HYP` mode toggle in LCD control bar.
+  - Dynamically switches trig keys to `sinh`, `cosh`, `tanh` and their inverse counterparts `asinh`, `acosh`, `atanh`.
+  - `INV` toggle switches $\sqrt{x} \leftrightarrow \sqrt[3]{x}$, $x^2 \leftrightarrow x^3$, $\sin \leftrightarrow \arcsin$, $\cos \leftrightarrow \arccos$, $\tan \leftrightarrow \arctan$, $\ln \leftrightarrow e^x$, $\log_{10} \leftrightarrow 10^x$.
+- **Keyboard Listener & Responsive UI:**
+  - Added support for `^`, `%`, `x`/`X`, `n`/`N`/`F9` (sign toggle), and `c`/`C` (clear).
+  - Responsive screen width `w-[92vw] max-w-[380px]` ensures zero overflow on mobile screens.
+
+---
+
 ## Architecture Overview
 
 ```
