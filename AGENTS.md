@@ -547,13 +547,13 @@ User reported: *"the calc have some issues if i try to do operation using multip
 #### `client/src/components/GateCalculator.tsx`
 - **Clean State Machine:**
   - Replaced ambiguous `waitingForOperand` with explicit `overwrite` boolean and `lastInput: 'none' | 'digit' | 'operator' | 'unary' | 'equals' | 'parenOpen' | 'parenClose'`.
-  - Pressing an operator after `=` automatically carries the current result forward as the initial operand (`${display} ${op} `).
+  - **Chaining Fix (e.g. `5 × 4 = 20 × 3 = 60`):** Both `lastInput === 'equals'` and `expression.trim().endsWith('=')` are checked across all handlers. Pressing an operator after `=` automatically carries the current result forward as the initial operand (`${display} ${op} `).
   - Pressing a digit or `(` after `=` cleanly starts a fresh calculation.
   - Pressing `=` repeatedly is an idempotent safe no-op.
 - **Unary Scientific Operations in Multi-Step Calculations:**
   - When unary functions (`sqrt`, `sin`, `cos`, `sqr`, `n!`, `pi`, `e`, etc.) or memory recall (`MR`) execute, `lastInput` is marked as `'unary'`, ensuring subsequent operators correctly append the unary result as the operand (e.g. `5 + 9 sqrt + 2 =` evaluates to `10`).
 - **Robust `cleanMathEvaluate`:**
-  - Strips trailing `=`, operators, and empty parentheses.
+  - Strips trailing `=`, operators, and empty parentheses; if an embedded `=` is ever present, it automatically recovers by taking the active expression after the last `=`.
   - Inserts explicit `*` for implicit multiplications: `(\d)\s*\(` $\to$ `$1*(`, `\)\s*(\d)` $\to$ `)*$1`, `\)\s*\(` $\to$ `)*(`.
   - Sanitizes leading zeros on numbers (`-03` $\to$ `-3`, `007` $\to$ `7`) to prevent octal syntax errors.
   - Automatically wraps negative bases before exponentiation (`(^|[+\-*/%])\s*-\s*([0-9.]+)\s*\*\*` $\to$ `$1(-$2)**`).
