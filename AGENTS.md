@@ -573,6 +573,126 @@ User reported: *"the calc have some issues if i try to do operation using multip
 
 ---
 
+## Session 15 — Progress Preservation Across Study Scopes & Strategy Clarity
+
+### Context
+User reported: *"while I done some progress but i changed Target Preparation Strategy & Material Scope: and saved i lost all the progress then"*.
+
+### Root Cause
+1. **Scope Filtering vs. Deletion:**
+   - Database and local storage inspection confirmed that saving study settings (`POST /api/calendar`) **never deletes** any progress (`user_lesson_progress`, quiz attempts, and spaced repetition cards are never deleted or cleared).
+   - However, when the user switched preparation scope to a narrower strategy (e.g. `🎯 Qualify Only - 24 Topics`):
+     - The Dashboard readiness score and mastery count (`{scopeInfo.completed} of {scopeInfo.total}`) recalculated strictly against the 24 qualification topics. Lessons completed in Tier 2 or Tier 3 subjects (like OS, Networks, TOC, Compiler, Algorithms) belong to the `scoring` or `comprehensive` tiers and thus evaluated to `0 of 24 Mastered` and `0% Readiness`.
+     - In `LessonsView`, the "Hide out-of-scope topics" toggle (`filterByScope`) was `true` by default, hiding all topics outside the active scope. Subjects with 0 qualify topics showed empty lists, hiding all completed lessons and green checkmarks.
+   - This created the visual perception that all historical progress was erased upon saving the calendar settings.
+
+### Changes Made
+
+#### `client/src/components/LessonsView.tsx`
+- **Completed Lesson Visibility Rule:** Updated `visibleTopics` filter to always include topics with `t.lesson_status === 'completed'` regardless of whether `filterByScope` is enabled.
+- Completed lessons and green checkmarks remain persistently visible across all 11 subjects even if the active scope filter is turned on.
+
+#### `client/src/components/DashboardView.tsx`
+- **Total vs. Scope Progress Dual Counter:** Added syllabus-wide completion count alongside scope-specific count on the Hero Banner (`"{scopeInfo.completed} of {scopeInfo.total} Mastered ({overview.completedLessons} total across syllabus)"`).
+- Added persistent retention indicator below the readiness gauge (`"★ X total completed lessons preserved"`) whenever total completed lessons exceed active scope completions.
+
+#### `client/src/components/CalendarView.tsx`
+- Added explicit reassurance note inside the Strategy & Scope Selector: *"Choosing a strategy adapts your daily targets, syllabus recommendations, and readiness gauge. All completed lessons, mock attempts, and flashcards are permanent and never deleted."*
+
+---
+
+## Session 16 — Integration of Official PhysicsWallah Handbooks, Cross-Branch Resources & High-Yield Formulas
+
+### Context
+User requested adding missing important materials discovered from the GATE preparation Gist and PhysicsWallah portal.
+
+### Changes Made
+
+#### `client/src/components/ResourcesView.tsx`
+- **12 Direct PhysicsWallah Subject Handbooks Added:** Added direct PDF links, subject descriptions, and badges for all 12 official PW GATE-O-PEDIA handbooks:
+  1. *Operating Systems* (Process, Sync, Deadlocks, Paging, Disk)
+  2. *Computer Networks* (OSI/TCP, Subnetting, Routing, Transport)
+  3. *Database Management Systems* (ER, Normalization, SQL, Concurrency)
+  4. *Computer Organization & Architecture* (Pipelining, Cache, Addressing, IEEE 754)
+  5. *Programming & Data Structures* (Pointers, Trees, Graphs, Hashing)
+  6. *Algorithms* (Master's Theorem, Sorting, Greedy, DP)
+  7. *Theory of Computation* (DFA/NFA, PDA, Turing Machines, Decidability)
+  8. *Compiler Design* (Lexical, LL/LR Parsing, SDT, Optimization)
+  9. *Digital Logic* (Boolean Algebra, K-Maps, Flip-Flops, Counters)
+  10. *Engineering Mathematics* (Linear Algebra, Calculus, Diff Equations)
+  11. *Discrete Mathematics* (Logic, Relations, Combinatorics, Graph Theory)
+  12. *General Aptitude* (Quantitative, Verbal, Spatial Reasoning)
+- **New Filter Tab:** Added `PW Handbooks (12 PDFs)` filter pill for instant 1-click access.
+- **Cross-Branch Study Materials:** Added links for GATE ECE, Mechanical, Electrical, and Civil Engineering from the source Gist under `Other Branches` tab.
+
+#### `client/src/components/FormulaVaultView.tsx`
+- **6 New High-Yield Formulas Added:** Extracted core mathematical formulas from PhysicsWallah Handbooks and added them to the Formula Vault:
+  1. *Hard Disk Access Time & Rotational Latency* ($T_{access} = T_{seek} + \frac{60}{2 \cdot \text{RPM}} + T_{transfer}$)
+  2. *Multi-Level Cache Average Memory Access Time (AMAT)* ($T_{L1} + (1 - H_1)(T_{L2} + (1 - H_2) T_{main})$)
+  3. *B+ Tree Node Order & Disk Block Capacity* ($p \cdot B_p + (p - 1)K \le B$)
+  4. *Clock Period & Maximum Operating Frequency* ($T_{clk} \ge T_{cq} + T_{comb} + T_{setup}$)
+  5. *Handshaking Lemma & Planar Graph Invariants* ($|V| - |E| + |F| = 2$, $|E| \le 3|V| - 6$)
+  6. *LL(1) Conflict-Free Grammar Conditions* (FIRST-FIRST and FIRST-FOLLOW disjoint sets)
+
+---
+
+## Session 17 — Full 11-Subject Syllabus Visibility & Discovery
+
+### Context
+User noticed only 5 subjects displayed under syllabus lessons (*General Aptitude, Engineering Mathematics, Programming & Data Structures, Database Management Systems, Digital Logic*) and inquired where the other core GATE CSE subjects were.
+
+### Root Cause
+In [`client/src/components/LessonsView.tsx`](file:///home/sreyas/projects/gate_study/client/src/components/LessonsView.tsx), `activeTier` was hardcoded to initialize to `1`. Tiers 2 and 3 contain the other 6 subjects:
+- **Tier 2 (Core Systems · 3):** Operating Systems, Computer Networks, Computer Organization & Architecture
+- **Tier 3 (Light Touch · 3):** Theory of Computation, Algorithms (Beyond Basics), Compiler Design
+Because the interface only allowed filtering by individual tiers without an "All Subjects" option, users were unaware the remaining 6 subjects existed.
+
+### Changes Made
+
+#### `client/src/components/LessonsView.tsx`
+- **Default "All Subjects (11)" View:**
+  - Expanded `activeTier` state from `Tier` to `Tier | 'all'`, defaulting to `'all'`.
+  - Added an **"All Subjects (11)"** tab alongside `Tier 1 (High-Yield · 5)`, `Tier 2 (Core · 3)`, and `Tier 3 (Light · 3)`.
+  - When `'all'` is selected, all 11 GATE CSE subjects are displayed simultaneously.
+  - Added prominent `T1`, `T2`, and `T3` badges to subject pill buttons so users immediately recognize weightage and tier classification while having immediate 1-click access to any subject.
+  - Dynamically resolved syllabus scope naming for out-of-scope banners using the active subject's tier rather than hardcoded tier state.
+- **Client Build & Verification:**
+  - Client production build passed cleanly (`vite build` in 1.38s).
+
+---
+
+## Session 18 — Dedicated Physics Wallah (PW) Study Hub & Navigation Overhaul
+
+### Context
+User reported: *"still no seperate physics wallah in resources"*. Previously, Physics Wallah handbooks were mixed inside a generic curated resources feed behind a small filter pill (`PW Handbooks (12 PDFs)`), making them hard to discover and not feeling like a dedicated, separate section.
+
+### Changes Made
+
+#### `client/src/components/ResourcesView.tsx` *(major redesign)*
+- **Primary Section Switcher:**
+  - Added a top-level segmented control dividing Resources into two standalone, dedicated experiences:
+    1. 🎓 **Physics Wallah (PW) Official Hub (12 Handbooks)**
+    2. 🌐 **Curated Community Resources (NPTEL, GfG, Books, Repos)**
+  - Default active section set to **`physics_wallah`** so users immediately land inside the dedicated PW section.
+- **Dedicated Physics Wallah Hub Experience:**
+  - Amber/Gold branded header banner with direct links to the official **PW Notes Portal** (`pw.live`) and **GATE Wallah Official YouTube Channel** (`youtube.com/@GATEWallah`).
+  - Tier filter pills specifically for PW Handbooks (`All 12 Handbooks`, `Tier 1: High Yield (6)`, `Tier 2: Core Systems (3)`, `Tier 3: Advanced (3)`).
+  - Dedicated search bar scoped to PW handbooks and topics.
+  - 12 high-contrast handbook cards with tier tags, official PDF badges, and prominent 1-click **"Download Official PDF"** buttons (linking directly to `static.pw.live`).
+- **Seamless Cross-Navigation:**
+  - Added a quick banner in the Curated Resources view pointing users to the dedicated Physics Wallah hub.
+
+#### `client/src/components/Navbar.tsx`
+- Renamed the navigation tab to **`PW & Resources Hub`** (mobile: **`PW Hub`**) with the `GraduationCap` icon.
+- Updated the mobile drawer to explicitly highlight **`PW & Resources Hub (12 PW Handbooks & Notes)`**.
+
+#### `client/src/components/DashboardView.tsx`
+- Added a dedicated **"PW Hub (12 PDFs)"** quick launcher button next to **Formulas** and **TCS Calc** for 1-click access from the dashboard.
+
+---
+
+
+
 ## Architecture Overview
 
 ```

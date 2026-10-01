@@ -15,6 +15,7 @@ import {
   Trophy,
   Sigma,
   Calculator,
+  GraduationCap,
 } from 'lucide-react';
 import { OverviewData, User, TargetScope } from '../types';
 import { NavTab } from './Navbar';
@@ -185,7 +186,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
               <div className="flex items-center gap-1.5 p-2 rounded-lg bg-slate-850/60 sm:p-0 sm:bg-transparent border border-slate-800 sm:border-0">
                 <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-400 shrink-0" />
-                <span><strong className="text-slate-200">{scopeInfo.completed}</strong> of {scopeInfo.total} Mastered</span>
+                <span>
+                  <strong className="text-slate-200">{scopeInfo.completed}</strong> of {scopeInfo.total} Mastered
+                  {(overview?.completedLessons ?? 0) > scopeInfo.completed && (
+                    <span className="text-slate-400 ml-1">({overview?.completedLessons} total across syllabus)</span>
+                  )}
+                </span>
               </div>
             </div>
           </div>
@@ -206,6 +212,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
             <span className="text-[10px] sm:text-[11px] text-slate-400">
               {activeScopeDesc.gaugeSub}
+              {(overview?.completedLessons ?? 0) > scopeInfo.completed && (
+                <span className="block text-[10px] text-emerald-400/90 font-medium mt-0.5">
+                  ★ {overview?.completedLessons} total completed lessons preserved
+                </span>
+              )}
             </span>
           </div>
         </div>
@@ -238,24 +249,37 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Quick Reference Tools */}
-        <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-2.5 shadow-md">
+        <div className="p-3 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-2 shadow-md">
           <button
-            onClick={() => onNavigate('formulas' as any)}
-            className="flex-1 p-2.5 rounded-xl bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/60 text-left transition-colors flex items-center gap-2"
+            onClick={() => onNavigate('resources')}
+            className="flex-1 p-2 rounded-xl bg-slate-800/60 hover:bg-amber-500/10 border border-slate-700/60 hover:border-amber-500/30 text-left transition-colors flex items-center gap-2"
+            title="Open 12 Official Physics Wallah Subject Handbooks"
           >
-            <div className="p-2 rounded-lg bg-cyan-500/15 text-cyan-300 shrink-0">
+            <div className="p-1.5 rounded-lg bg-amber-500/15 text-amber-300 shrink-0">
+              <GraduationCap className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="block text-xs font-bold text-slate-200">PW Hub</span>
+              <span className="block text-[10px] text-amber-400/90 font-medium">12 PDFs</span>
+            </div>
+          </button>
+          <button
+            onClick={() => onNavigate('formulas')}
+            className="flex-1 p-2 rounded-xl bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/60 text-left transition-colors flex items-center gap-2"
+          >
+            <div className="p-1.5 rounded-lg bg-cyan-500/15 text-cyan-300 shrink-0">
               <Sigma className="w-4 h-4" />
             </div>
             <div>
               <span className="block text-xs font-bold text-slate-200">Formulas</span>
-              <span className="block text-[10px] text-slate-400">Vault &amp; Cheats</span>
+              <span className="block text-[10px] text-slate-400">Vault</span>
             </div>
           </button>
           <button
             onClick={() => setIsCalcOpen(true)}
-            className="flex-1 p-2.5 rounded-xl bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/60 text-left transition-colors flex items-center gap-2"
+            className="flex-1 p-2 rounded-xl bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/60 text-left transition-colors flex items-center gap-2"
           >
-            <div className="p-2 rounded-lg bg-indigo-500/15 text-indigo-300 shrink-0">
+            <div className="p-1.5 rounded-lg bg-indigo-500/15 text-indigo-300 shrink-0">
               <Calculator className="w-4 h-4" />
             </div>
             <div>

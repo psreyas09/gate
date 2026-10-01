@@ -231,6 +231,68 @@ const FORMULA_DATABASE: FormulaCard[] = [
     description: 'Strict containment hierarchy: Regular (DFA/NFA) -> CFL (Pushdown Automata) -> CSL (Linear Bounded Automata) -> RE (Turing Machine).',
     standardTrap: 'DCFL is strictly closed under complementation, but general CFL is NOT closed under complementation or intersection.',
     tags: ['chomsky hierarchy', 'languages', 'automata']
+  },
+  {
+    id: 'cd-1',
+    title: 'LL(1) Parser Conflict-Free Conditions',
+    subject: 'Compiler Design',
+    scope: 'scoring',
+    latex: '\\text{For grammar rule } A \\to \\alpha \\mid \\beta: \\\\ 1.\\; \\text{FIRST}(\\alpha) \\cap \\text{FIRST}(\\beta) = \\emptyset \\\\ 2.\\; \\text{At most one of } \\alpha, \\beta \\text{ can derive } \\epsilon \\\\ 3.\\; \\text{If } \\alpha \\implies^* \\epsilon \\implies \\text{FIRST}(\\beta) \\cap \\text{FOLLOW}(A) = \\emptyset',
+    description: 'Necessary and sufficient test to ensure a context-free grammar has no FIRST-FIRST or FIRST-FOLLOW conflicts in predictive top-down LL(1) parsing.',
+    standardTrap: 'Left-recursive grammars and grammars with common prefixes are NEVER LL(1).',
+    tags: ['compiler', 'll(1)', 'first', 'follow', 'parsing']
+  },
+
+  // 9. High-Yield Systems & Math Additions (From PW Handbooks)
+  {
+    id: 'os-4',
+    title: 'Hard Disk Access Time & Rotational Latency',
+    subject: 'Operating Systems',
+    scope: 'qualify',
+    latex: 'T_{\\text{access}} = T_{\\text{seek}} + T_{\\text{rotational}} + T_{\\text{transfer}} \\\\ T_{\\text{rotational}} = \\frac{1}{2} \\cdot \\left(\\frac{60}{\\text{RPM}}\\right) \\text{ seconds}',
+    description: 'Calculates average disk seek, average half-rotation latency at given spindle speed (RPM), and data transfer time.',
+    standardTrap: 'Average rotational delay is always half rotation (180 degrees) unless the exact start sector position is given.',
+    tags: ['operating systems', 'disk scheduling', 'rotational latency', 'hard disk']
+  },
+  {
+    id: 'coa-3',
+    title: 'Average Memory Access Time (AMAT) with L1, L2 & RAM',
+    subject: 'Computer Organization & Architecture',
+    scope: 'qualify',
+    latex: '\\text{AMAT} = T_{L1} + (1 - H_1) \\cdot \\left( T_{L2} + (1 - H_2) \\cdot T_{\\text{main}} \\right)',
+    description: 'Hierarchical memory access latency with primary cache hit rate $H_1$, secondary cache hit rate $H_2$, and main memory access latency.',
+    standardTrap: 'Check whether L2 access time $T_{L2}$ is specified as simultaneous with L1 or penalty added after L1 miss.',
+    tags: ['coa', 'cache', 'amat', 'hierarchical memory']
+  },
+  {
+    id: 'dbms-3',
+    title: 'B+ Tree Indexing Node Order & Block Capacity',
+    subject: 'Database Management Systems',
+    scope: 'scoring',
+    latex: '\\text{For Internal Node of order } p: \\quad p \\cdot B_p + (p - 1) \\cdot K \\le B \\\\ \\text{For Leaf Node with Record Pointer } R_p: \\quad p_{\\text{leaf}} \\cdot (K + R_p) + B_p \\le B',
+    description: 'Calculates the maximum fan-out / order $p$ that can fit into a disk block of size $B$ with search key size $K$, block pointer $B_p$, and record pointer $R_p$.',
+    standardTrap: 'Internal nodes store $(p-1)$ search keys and $p$ block pointers; leaf nodes store keys and record pointers plus 1 block pointer to the next leaf sibling.',
+    tags: ['dbms', 'b+ tree', 'indexing', 'block capacity']
+  },
+  {
+    id: 'dl-3',
+    title: 'Clock Period & Max Frequency (Setup & Hold Time)',
+    subject: 'Digital Logic',
+    scope: 'scoring',
+    latex: 'T_{\\text{clk}} \\ge T_{\\text{cq}} + T_{\\text{comb,max}} + T_{\\text{setup}} \\\\ f_{\\text{max}} = \\frac{1}{T_{\\text{clk,min}}}, \\quad \\text{Hold check:} \\; T_{\\text{cq}} + T_{\\text{comb,min}} \\ge T_{\\text{hold}}',
+    description: 'Determines maximum operating clock frequency for flip-flops without setup time violation, and ensures hold time margin.',
+    standardTrap: 'Clock skew $\\delta$ subtracts from available cycle time if it arrives late at receiving flip-flop: $T_{\\text{clk}} \\ge T_{cq} + T_{comb} + T_{setup} - \\delta$.',
+    tags: ['digital logic', 'setup time', 'hold time', 'clock frequency']
+  },
+  {
+    id: 'dm-1',
+    title: "Handshaking Lemma & Planar Graph Euler Formula",
+    subject: 'Discrete Mathematics',
+    scope: 'qualify',
+    latex: '\\sum_{v \\in V} \\deg(v) = 2|E| \\implies \\text{Number of odd degree vertices is always EVEN.} \\\\ \\text{Planar connected graph: } |V| - |E| + |F| = 2 \\\\ \\text{For } |V| \\ge 3: \\; |E| \\le 3|V| - 6 \\quad (\\text{Triangle-free: } |E| \\le 2|V| - 4)',
+    description: 'Core graph invariants for testing planarity, number of faces, and vertex degree parity.',
+    standardTrap: 'Euler formula $|V| - |E| + |F| = 1 + k$ where $k$ is the number of disconnected graph components.',
+    tags: ['graph theory', 'euler formula', 'planar graphs', 'handshaking']
   }
 ];
 

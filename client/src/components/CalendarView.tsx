@@ -167,6 +167,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSettingsSaved }) =
             </span>
           </div>
 
+          <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 text-[11px] text-slate-400 flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-cyan-400 shrink-0" />
+            <span>
+              <strong className="text-slate-200">Safe Strategy Customization:</strong> Choosing a strategy adapts your daily targets, syllabus recommendations, and readiness gauge. All completed lessons, mock attempts, and flashcards are permanent and never deleted.
+            </span>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {/* Qualify Only */}
             <div

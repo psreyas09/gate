@@ -18,6 +18,7 @@ import {
   Smartphone,
   Sigma,
   Calculator,
+  GraduationCap,
 } from 'lucide-react';
 import { OverviewData, User } from '../types';
 
@@ -44,7 +45,7 @@ const TABS: { id: NavTab; label: string; mobileLabel: string; icon: any; badgeKe
   { id: 'mock', label: 'Mock Tests (Timed)', mobileLabel: 'Mocks', icon: Timer },
   { id: 'formulas', label: 'Formula Vault', mobileLabel: 'Formulas', icon: Sigma },
   { id: 'calendar', label: 'Calendar & Schedule', mobileLabel: 'Schedule', icon: Calendar },
-  { id: 'resources', label: 'Resources Hub', mobileLabel: 'Resources', icon: Bookmark },
+  { id: 'resources', label: 'PW & Resources Hub', mobileLabel: 'PW Hub', icon: GraduationCap },
 ];
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -448,14 +449,14 @@ export const MobileBottomNav: React.FC<NavbarProps> = ({
                 onClick={() => handleSelectTab('resources')}
                 className={`p-3 rounded-xl border flex items-center gap-2.5 text-left ${
                   currentTab === 'resources'
-                    ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
+                    ? 'bg-amber-500/20 border-amber-400 text-amber-200'
                     : 'bg-slate-800/60 border-slate-700/60 text-slate-200'
                 }`}
               >
-                <Bookmark className="w-4 h-4 text-amber-400 shrink-0" />
+                <GraduationCap className="w-4 h-4 text-amber-400 shrink-0" />
                 <div>
-                  <div className="font-semibold">Resources Hub</div>
-                  <div className="text-[10px] text-slate-400">Free notes &amp; NPTEL</div>
+                  <div className="font-semibold">PW &amp; Resources Hub</div>
+                  <div className="text-[10px] text-amber-300/90 font-medium">12 PW Handbooks &amp; Notes</div>
                 </div>
               </button>
 

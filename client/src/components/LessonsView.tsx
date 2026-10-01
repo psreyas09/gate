@@ -7,11 +7,26 @@ import {
   HelpCircle,
   CheckCircle2,
   XCircle,
-  Sparkles
+  Sparkles,
+  ExternalLink
 } from 'lucide-react';
 import { Subject, Topic, Lesson, Tier, TargetScope } from '../types';
 import { MathText } from './MathText';
 import { getCachedSubjects, setCachedSubjects, getCachedTopics, setCachedTopics } from '../services/curriculumCache';
+
+const PW_HANDBOOK_MAP: Record<string, string> = {
+  'Operating Systems': 'https://static.pw.live/5eb393ee95fab7468a79d189/GLOBAL_CMS_BLOGS/2fd06899-b7f2-44c7-b859-e608cf490de4.pdf',
+  'Computer Networks': 'https://static.pw.live/5eb393ee95fab7468a79d189/GLOBAL_CMS_BLOGS/a483295c-2895-4375-bfa7-21b750de1c8b.pdf',
+  'Database Management Systems': 'https://static.pw.live/5eb393ee95fab7468a79d189/GLOBAL_CMS_BLOGS/1c29fc66-868a-4f54-be30-df0a813790b9.pdf',
+  'Computer Organization & Architecture': 'https://static.pw.live/5eb393ee95fab7468a79d189/GLOBAL_CMS_BLOGS/8d2a418c-7299-40d9-bb15-9ea32e768a88.pdf',
+  'Programming & Data Structures': 'https://static.pw.live/5eb393ee95fab7468a79d189/GLOBAL_CMS_BLOGS/44297ff4-cbe0-4fc4-87e1-948f9daeb5b6.pdf',
+  'Algorithms (Beyond Basics)': 'https://static.pw.live/5eb393ee95fab7468a79d189/GLOBAL_CMS_BLOGS/acc041c0-74ff-4608-9ef9-ab759d0953f2.pdf',
+  'Theory of Computation': 'https://static.pw.live/5eb393ee95fab7468a79d189/GLOBAL_CMS_BLOGS/e71de686-d85c-4910-a7c8-f5623dfb17d1.pdf',
+  'Compiler Design': 'https://static.pw.live/5eb393ee95fab7468a79d189/GLOBAL_CMS_BLOGS/e751d87f-9074-4f6b-83a2-e97c4e168117.pdf',
+  'Digital Logic': 'https://static.pw.live/5eb393ee95fab7468a79d189/GLOBAL_CMS_BLOGS/92030e28-da6b-4f49-8920-ec1ed0b61684.pdf',
+  'Engineering Mathematics': 'https://static.pw.live/5eb393ee95fab7468a79d189/GLOBAL_CMS_BLOGS/7290303c-b37a-40c7-b486-a298ffe6aa60.pdf',
+  'General Aptitude': 'https://static.pw.live/5eb393ee95fab7468a79d189/GLOBAL_CMS_BLOGS/fcb3fb4a-2ae6-4a7d-8b2f-280497391bb1.pdf',
+};
 
 interface LessonsViewProps {
   onProgressUpdated: () => void;
@@ -19,13 +34,12 @@ interface LessonsViewProps {
 }
 
 export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, selectedTopicId: initialTopicId }) => {
-  const [activeTier, setActiveTier] = useState<Tier>(1);
+  const [activeTier, setActiveTier] = useState<Tier | 'all'>('all');
   const [subjects, setSubjects] = useState<Subject[]>(() => getCachedSubjects() || []);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>(() => {
     const cached = getCachedSubjects();
     if (cached && cached.length > 0) {
-      const firstTier1 = cached.find(s => s.tier === 1);
-      return firstTier1 ? firstTier1.id : cached[0].id;
+      return cached[0].id;
     }
     return '';
   });
@@ -67,8 +81,7 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
           setSubjects(data);
           setCachedSubjects(data);
           if (!selectedSubjectId) {
-            const firstTier1 = data.find(s => s.tier === 1);
-            if (firstTier1) setSelectedSubjectId(firstTier1.id);
+            setSelectedSubjectId(data[0].id);
           }
         }
       })
@@ -184,19 +197,28 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
     } catch {}
   };
 
-  const handleTierSwitch = (tier: Tier) => {
+  const handleTierSwitch = (tier: Tier | 'all') => {
     setActiveTier(tier);
-    const sub = subjects.find(s => s.tier === tier);
-    if (sub) {
-      setSelectedSubjectId(sub.id);
+    if (tier !== 'all') {
+      const currentSub = subjects.find(s => s.id === selectedSubjectId);
+      if (!currentSub || currentSub.tier !== tier) {
+        const sub = subjects.find(s => s.tier === tier);
+        if (sub) {
+          setSelectedSubjectId(sub.id);
+        }
+      }
     }
     setMobileViewMode('topics');
   };
 
-  const filteredSubjects = subjects.filter(s => s.tier === activeTier);
+  const filteredSubjects = activeTier === 'all'
+    ? subjects
+    : subjects.filter(s => s.tier === activeTier);
 
   const visibleTopics = topics.filter(t => {
     if (!filterByScope) return true;
+    // Always preserve visibility of lessons the user has already completed
+    if (t.lesson_status === 'completed') return true;
     const topicScope = t.scope || 'scoring';
     if (activeScope === 'qualify') return topicScope === 'qualify';
     if (activeScope === 'scoring') return topicScope === 'qualify' || topicScope === 'scoring';
@@ -216,6 +238,16 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
 
         <div className="flex p-1 bg-slate-900 border border-slate-800 rounded-xl space-x-1 shrink-0 overflow-x-auto no-scrollbar">
           <button
+            onClick={() => handleTierSwitch('all')}
+            className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all touch-manipulation ${
+              activeTier === 'all'
+                ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            All Subjects (11)
+          </button>
+          <button
             onClick={() => handleTierSwitch(1)}
             className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all touch-manipulation ${
               activeTier === 1
@@ -223,7 +255,7 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            Tier 1 (Full Depth)
+            Tier 1 (High-Yield · 5)
           </button>
           <button
             onClick={() => handleTierSwitch(2)}
@@ -233,17 +265,17 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            Tier 2 (Core)
+            Tier 2 (Core · 3)
           </button>
           <button
             onClick={() => handleTierSwitch(3)}
             className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all touch-manipulation ${
               activeTier === 3
-                ? 'bg-slate-700/40 text-slate-300 border border-slate-600/40'
+                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            Tier 3 (Light)
+            Tier 3 (Light · 3)
           </button>
         </div>
       </div>
@@ -317,6 +349,15 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
                     : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
                 }`}
               >
+                {activeTier === 'all' && (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${
+                    sub.tier === 1 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                    sub.tier === 2 ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' :
+                    'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                  }`}>
+                    T{sub.tier}
+                  </span>
+                )}
                 <span>{sub.name}</span>
                 {sub.completed_lessons && sub.completed_lessons > 0 ? (
                   <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
@@ -381,7 +422,7 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
                   All topics here are outside active &quot;{activeScope === 'qualify' ? 'Qualify Only' : 'Rank Booster'}&quot; scope
                 </p>
                 <p className="text-[11px] text-slate-400 leading-relaxed">
-                  These topics belong to the {activeTier === 3 ? 'Comprehensive' : 'Rank Booster'} syllabus.
+                  These topics belong to the {(subjects.find(s => s.id === selectedSubjectId)?.tier === 3) ? 'Comprehensive' : 'Rank Booster'} syllabus.
                 </p>
                 <button
                   onClick={() => setFilterByScope(false)}
@@ -500,15 +541,26 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
 
                 <h1 className="text-xl sm:text-2xl font-bold text-white">{selectedLesson.title}</h1>
 
-                {/* Authoritative Citation */}
-                {selectedLesson.citation && (
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-slate-800/60 border border-slate-700/60 text-xs text-slate-300">
+                {/* Authoritative Citation & PW Handbook Link */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-lg bg-slate-800/60 border border-slate-700/60 text-xs text-slate-300">
+                  <div className="flex items-center gap-2">
                     <BookMarked className="w-4 h-4 text-cyan-400 shrink-0" />
                     <span>
-                      <strong className="text-cyan-300 font-semibold">Standard Reference:</strong> {selectedLesson.citation}
+                      <strong className="text-cyan-300 font-semibold">Standard Reference:</strong> {selectedLesson.citation || 'Standard Textbook'}
                     </span>
                   </div>
-                )}
+                  {selectedLesson.subject_name && PW_HANDBOOK_MAP[selectedLesson.subject_name] && (
+                    <a
+                      href={PW_HANDBOOK_MAP[selectedLesson.subject_name]}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-indigo-200 text-[11px] font-semibold transition-colors self-start sm:self-auto shrink-0"
+                    >
+                      <span>PW {selectedLesson.subject_name} PDF</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
 
                 {/* Content Markdown with KaTeX */}
                 <div className="pt-2 text-slate-200">
