@@ -414,7 +414,7 @@ export const FormulaVaultView: React.FC = () => {
                   : 'bg-slate-800 text-slate-400 hover:text-slate-200'
               }`}
             >
-              🎯 Qualify Core
+              Qualify core
             </button>
             <button
               onClick={() => setSelectedScope('starred')}
@@ -469,7 +469,7 @@ export const FormulaVaultView: React.FC = () => {
                       </span>
                       {f.scope === 'qualify' && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                          🎯 Qualify High-Yield
+                          Qualify high-yield
                         </span>
                       )}
                     </div>
@@ -510,7 +510,7 @@ export const FormulaVaultView: React.FC = () => {
                       }
                       className="text-[11px] font-semibold text-rose-400 hover:text-rose-300 flex items-center gap-1 select-none"
                     >
-                      <span>⚠️ Common GATE Exam Trap</span>
+                      <span>Common GATE exam trap</span>
                       {showTrap ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                     </button>
                     {showTrap && (

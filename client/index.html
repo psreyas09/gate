@@ -48,11 +48,21 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+      // A development service worker can cache Vite modules and make local
+      // diagnostics misleading. Register only on deployed HTTP(S) origins.
+      if ('serviceWorker' in navigator &&
+          window.location.protocol.startsWith('http') &&
+          window.location.hostname !== 'localhost' &&
+          window.location.hostname !== '127.0.0.1') {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js').then((reg) => {
             reg.update().catch(() => {});
           }).catch((err) => console.log('SW registration skipped:', err));
+        });
+      } else if ('serviceWorker' in navigator) {
+        // Clean up service workers registered by earlier local builds.
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          registrations.forEach((registration) => registration.unregister());
         });
       }
     </script>

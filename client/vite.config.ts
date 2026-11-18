@@ -19,6 +19,15 @@ const proxyConfig = {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // Keep all lazily-loaded views on the application's single React runtime.
+  // This also prevents stale optimized dependencies from producing invalid-hook
+  // calls during local development after dependency updates.
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react/jsx-runtime'],
+  },
   server: {
     port: 5173,
     proxy: {

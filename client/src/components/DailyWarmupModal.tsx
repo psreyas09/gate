@@ -262,8 +262,8 @@ export const DailyWarmupModal: React.FC<DailyWarmupModalProps> = ({
                 </div>
                 <p className="text-xs text-slate-400">
                   {results.filter(r => r.isCorrect).length >= 3
-                    ? '🎉 Great job! Consistent daily practice is the key to qualifying.'
-                    : '⚡ Missed questions have been automatically added to your Spaced Repetition queue for review.'}
+                    ? 'Strong result. Consistent daily practice is the key to qualifying.'
+                    : 'Missed questions have been added to your review queue.'}
                 </p>
               </div>
 

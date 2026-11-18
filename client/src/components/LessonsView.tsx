@@ -295,7 +295,7 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              🎯 Qualify Only (24)
+              Qualify (24)
             </button>
             <button
               onClick={() => handleScopeChange('scoring')}
@@ -305,7 +305,7 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              🚀 Rank Booster (50)
+              Rank booster (50)
             </button>
             <button
               onClick={() => handleScopeChange('comprehensive')}
@@ -315,7 +315,7 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              🏆 All Syllabus (60)
+              Complete syllabus (60)
             </button>
           </div>
         </div>
@@ -411,7 +411,7 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
               <span className="text-xs uppercase tracking-wider font-semibold text-slate-400">
                 Topics ({visibleTopics.length})
               </span>
-              <span className="text-[11px] text-cyan-400 font-medium">★ = High Yield</span>
+              <span className="text-[11px] text-cyan-400 font-medium">High-yield topics</span>
             </div>
 
             {loading && topics.length === 0 ? (
@@ -456,15 +456,15 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
                           <div className="flex items-center gap-1.5 flex-wrap">
                             {t.scope === 'qualify' ? (
                               <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                                🎯 Qualify
+                                Qualify
                               </span>
                             ) : t.scope === 'scoring' ? (
                               <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                                🚀 Scoring
+                                Scoring
                               </span>
                             ) : (
                               <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-700/40 text-slate-400 border border-slate-600/30">
-                                🏆 Comp
+                                Complete
                               </span>
                             )}
                             {t.is_high_yield === 1 && (
@@ -692,7 +692,7 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
                       }
                       className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:pointer-events-none text-white text-xs font-semibold shadow-lg shadow-cyan-900/40 transition-all flex items-center justify-center gap-2 min-h-[44px] order-1 sm:order-2"
                     >
-                      {submittingCheck ? 'Evaluating...' : checkFeedback?.allCorrect ? 'Completed ✓' : 'Submit Quick Checks & Complete'}
+                      {submittingCheck ? 'Evaluating...' : checkFeedback?.allCorrect ? 'Completed' : 'Submit Quick Checks & Complete'}
                     </button>
                   </div>
                 </div>

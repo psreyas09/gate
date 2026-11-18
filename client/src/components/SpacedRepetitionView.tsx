@@ -140,7 +140,7 @@ export const SpacedRepetitionView: React.FC<SpacedRepetitionViewProps> = ({ onRe
               </div>
               {currentCard.is_high_yield === 1 && (
                 <span className="text-[10px] font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30 shrink-0">
-                  ★ High-Yield
+                  High-yield
                 </span>
               )}
             </div>

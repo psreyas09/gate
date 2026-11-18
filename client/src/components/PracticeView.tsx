@@ -233,7 +233,7 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
                 : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
             }`}
           >
-            🎯 High-Yield Only
+            High-yield only
           </button>
 
           {/* Starred Only Toggle */}
@@ -314,7 +314,7 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ drillWeakOnly = fals
                     )}
                     {q.is_high_yield === 1 && (
                       <span className="text-[10px] font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30">
-                        ★ High-Yield
+                        High-yield
                       </span>
                     )}
                   </div>

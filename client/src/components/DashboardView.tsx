@@ -214,7 +214,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               {activeScopeDesc.gaugeSub}
               {(overview?.completedLessons ?? 0) > scopeInfo.completed && (
                 <span className="block text-[10px] text-emerald-400/90 font-medium mt-0.5">
-                  ★ {overview?.completedLessons} total completed lessons preserved
+                  {overview?.completedLessons} total completed lessons preserved
                 </span>
               )}
             </span>

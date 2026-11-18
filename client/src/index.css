@@ -6,7 +6,7 @@
   --surface-raised: #162033;
   --line: #26354d;
   --text-muted: #94a3b8;
-  --accent: #22d3ee;
+  --accent: #e2e8f0;
 }
 
 html, body, #root {
@@ -36,7 +36,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-::selection { background: rgb(34 211 238 / 0.24); color: #ecfeff; }
+::selection { background: rgb(226 232 240 / 0.2); color: #fff; }
 
 /* Mobile-friendly safe-area padding helpers */
 .safe-bottom {

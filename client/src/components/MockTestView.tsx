@@ -261,7 +261,7 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
                     </div>
                     {m.passed_cutoff === 1 ? (
                       <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                        Qualified ✓
+                        Qualified
                       </span>
                     ) : (
                       <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
@@ -445,7 +445,7 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
                       : 'border-slate-700 text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  {markedForReview[currentQ.id] ? 'Marked for Review ★' : 'Mark for Review'}
+                  {markedForReview[currentQ.id] ? 'Marked for review' : 'Mark for review'}
                 </button>
 
                 <div className="flex items-center justify-end gap-2">
@@ -696,7 +696,7 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
                     : 'bg-slate-850 text-slate-400 hover:text-slate-200'
                 }`}
               >
-                ❌ Wrong ({mockResult.incorrectCount})
+                Wrong ({mockResult.incorrectCount})
               </button>
               <button
                 onClick={() => setReviewFilter('skipped')}
@@ -706,7 +706,7 @@ export const MockTestView: React.FC<MockTestViewProps> = ({ onMockCompleted }) =
                     : 'bg-slate-850 text-slate-400 hover:text-slate-200'
                 }`}
               >
-                ⚪ Skipped ({mockResult.unattemptedCount})
+                Skipped ({mockResult.unattemptedCount})
               </button>
               <button
                 onClick={() => setReviewFilter('flagged')}

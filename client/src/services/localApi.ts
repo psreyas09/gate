@@ -1,4 +1,17 @@
-import curriculum from '../data/curriculumSeed.json';
+import type curriculumData from '../data/curriculumSeed.json';
+
+// The offline fallback is not needed for the normal API path. Keep its large
+// curriculum payload out of the initial application module graph.
+type Curriculum = typeof curriculumData;
+let curriculum!: Curriculum;
+let curriculumLoad: Promise<Curriculum> | null = null;
+
+async function getCurriculum() {
+  if (curriculum) return curriculum;
+  curriculumLoad ||= import('../data/curriculumSeed.json').then(module => module.default);
+  curriculum = await curriculumLoad;
+  return curriculum;
+}
 
 // Local Persistence Keys
 const KEYS = {
@@ -69,7 +82,8 @@ function calculateSM2({ repetition = 0, intervalDays = 0, easeFactor = 2.5, rati
 }
 
 // Initialize seed spaced repetition cards if empty
-export function initLocalStoreIfNeeded() {
+export async function initLocalStoreIfNeeded() {
+  await getCurriculum();
   const existingCards = getStore<any[]>(KEYS.SPACED_CARDS, []);
   if (existingCards.length === 0) {
     const now = new Date().toISOString();
@@ -118,7 +132,7 @@ function parseUrl(urlString: string) {
 
 // Handle all /api requests locally in the browser
 export async function handleLocalApi(urlString: string, options?: RequestInit): Promise<Response> {
-  initLocalStoreIfNeeded();
+  await initLocalStoreIfNeeded();
   const { pathname, searchParams } = parseUrl(urlString);
   const method = (options?.method || 'GET').toUpperCase();
   const body = options?.body ? JSON.parse(options.body as string) : {};

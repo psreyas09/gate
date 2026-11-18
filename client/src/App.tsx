@@ -9,7 +9,7 @@ import confetti from 'canvas-confetti';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Code-split heavy views via React.lazy for optimized initial bundle
-const DashboardView = React.lazy(() => import('./components/DashboardView').then(m => ({ default: m.DashboardView })));
+const DashboardView = React.lazy(() => import('./components/StudyDashboard').then(m => ({ default: m.StudyDashboard })));
 const LessonsView = React.lazy(() => import('./components/LessonsView').then(m => ({ default: m.LessonsView })));
 const SpacedRepetitionView = React.lazy(() => import('./components/SpacedRepetitionView').then(m => ({ default: m.SpacedRepetitionView })));
 const PracticeView = React.lazy(() => import('./components/PracticeView').then(m => ({ default: m.PracticeView })));
@@ -20,7 +20,7 @@ const FormulaVaultView = React.lazy(() => import('./components/FormulaVaultView'
 const GateCalculator = React.lazy(() => import('./components/GateCalculator').then(m => ({ default: m.GateCalculator })));
 
 const viewLoaders: Record<string, () => Promise<any>> = {
-  dashboard: () => import('./components/DashboardView'),
+  dashboard: () => import('./components/StudyDashboard'),
   lessons: () => import('./components/LessonsView'),
   spaced_repetition: () => import('./components/SpacedRepetitionView'),
   practice: () => import('./components/PracticeView'),

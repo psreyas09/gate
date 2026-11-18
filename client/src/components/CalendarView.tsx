@@ -151,7 +151,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSettingsSaved }) =
               className="w-full px-3 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 focus:outline-none focus:border-cyan-400 font-mono min-h-[42px]"
             />
             <span className="text-[11px] text-slate-400">
-              {parseFloat(targetCutoff) <= 40 ? '🎯 Qualify Only Scope suggested' : parseFloat(targetCutoff) <= 65 ? '🚀 Rank Booster Scope suggested' : '🏆 Comprehensive Scope suggested'}
+              {parseFloat(targetCutoff) <= 40 ? 'Qualify scope suggested' : parseFloat(targetCutoff) <= 65 ? 'Rank booster scope suggested' : 'Complete syllabus scope suggested'}
             </span>
           </div>
         </div>
@@ -186,7 +186,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSettingsSaved }) =
             >
               <div className="flex items-center justify-between mb-1.5">
                 <span className="font-bold text-xs text-white flex items-center gap-1.5">
-                  🎯 Qualify Only (35+ Marks)
+                  Qualify (35+ marks)
                 </span>
                 {targetScope === 'qualify' && <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />}
               </div>
@@ -209,7 +209,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSettingsSaved }) =
             >
               <div className="flex items-center justify-between mb-1.5">
                 <span className="font-bold text-xs text-white flex items-center gap-1.5">
-                  🚀 Rank Booster (50-65 Marks)
+                  Rank booster (50–65 marks)
                 </span>
                 {targetScope === 'scoring' && <CheckCircle className="w-4 h-4 text-cyan-400 shrink-0" />}
               </div>
@@ -232,7 +232,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSettingsSaved }) =
             >
               <div className="flex items-center justify-between mb-1.5">
                 <span className="font-bold text-xs text-white flex items-center gap-1.5">
-                  🏆 Comprehensive (75-100)
+                  Complete syllabus (75–100)
                 </span>
                 {targetScope === 'comprehensive' && <CheckCircle className="w-4 h-4 text-indigo-400 shrink-0" />}
               </div>
