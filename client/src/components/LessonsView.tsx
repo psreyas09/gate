@@ -8,7 +8,11 @@ import {
   CheckCircle2,
   XCircle,
   Sparkles,
-  ExternalLink
+  ExternalLink,
+  Play,
+  Pause,
+  RotateCcw,
+  Timer
 } from 'lucide-react';
 import { Subject, Topic, Lesson, Tier, TargetScope } from '../types';
 import { MathText } from './MathText';
@@ -60,6 +64,10 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
   const [quickCheckAnswers, setQuickCheckAnswers] = useState<Record<string, number>>({});
   const [submittingCheck, setSubmittingCheck] = useState(false);
   const [checkFeedback, setCheckFeedback] = useState<any>(null);
+  const [sprintSeconds, setSprintSeconds] = useState(10 * 60);
+  const [sprintRunning, setSprintRunning] = useState(false);
+  const [teachBackOpen, setTeachBackOpen] = useState(false);
+  const [teachBack, setTeachBack] = useState('');
 
   // 1. Fetch subjects & calendar scope on mount
   useEffect(() => {
@@ -128,6 +136,26 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
       .catch(() => setLoading(false));
   }, [selectedSubjectId, initialTopicId]);
 
+  useEffect(() => {
+    if (!sprintRunning || sprintSeconds <= 0) return;
+    const timer = window.setInterval(() => setSprintSeconds(value => Math.max(0, value - 1)), 1000);
+    return () => window.clearInterval(timer);
+  }, [sprintRunning, sprintSeconds]);
+
+  useEffect(() => {
+    if (sprintSeconds === 0) setSprintRunning(false);
+  }, [sprintSeconds]);
+
+  useEffect(() => {
+    if (!selectedLesson) return;
+    setTeachBackOpen(false);
+    try {
+      setTeachBack(localStorage.getItem(`gate_teach_back_${selectedLesson.id}`) || '');
+    } catch {
+      setTeachBack('');
+    }
+  }, [selectedLesson?.id]);
+
   const resetScroll = () => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     document.querySelector('main')?.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -137,6 +165,8 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
     setLoading(true);
     setCheckFeedback(null);
     setQuickCheckAnswers({});
+    setSprintRunning(false);
+    setSprintSeconds(10 * 60);
     if (switchMobileToLesson) {
       setMobileViewMode('lesson');
       resetScroll();
@@ -209,6 +239,14 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
       }
     }
     setMobileViewMode('topics');
+  };
+
+  const sprintLabel = `${Math.floor(sprintSeconds / 60)}:${String(sprintSeconds % 60).padStart(2, '0')}`;
+
+  const saveTeachBack = (value: string) => {
+    setTeachBack(value);
+    if (!selectedLesson) return;
+    try { localStorage.setItem(`gate_teach_back_${selectedLesson.id}`, value); } catch {}
   };
 
   const filteredSubjects = activeTier === 'all'
@@ -541,6 +579,37 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
 
                 <h1 className="text-xl sm:text-2xl font-bold text-white">{selectedLesson.title}</h1>
 
+                <div className="flex flex-col gap-3 border-y border-slate-800 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-md bg-slate-800 text-slate-300">
+                      <Timer className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-200">10-minute focus sprint</p>
+                      <p className="text-[11px] text-slate-500">Read actively, then test your recall below.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="min-w-12 font-mono text-sm font-semibold text-slate-200" aria-live="polite">{sprintLabel}</span>
+                    <button
+                      onClick={() => {
+                        if (sprintSeconds === 0) setSprintSeconds(10 * 60);
+                        else setSprintRunning(value => !value);
+                      }}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-md border border-slate-600 px-3 text-xs font-semibold text-slate-200 hover:bg-slate-800"
+                      aria-label={sprintRunning ? 'Pause focus sprint' : 'Start focus sprint'}
+                    >
+                      {sprintRunning ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                      {sprintRunning ? 'Pause' : sprintSeconds === 0 ? 'Again' : 'Start'}
+                    </button>
+                    <button
+                      onClick={() => { setSprintRunning(false); setSprintSeconds(10 * 60); }}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                      aria-label="Reset focus sprint"
+                    ><RotateCcw className="h-3.5 w-3.5" /></button>
+                  </div>
+                </div>
+
                 {/* Authoritative Citation & PW Handbook Link */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-lg bg-slate-800/60 border border-slate-700/60 text-xs text-slate-300">
                   <div className="flex items-center gap-2">
@@ -566,6 +635,31 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
                 <div className="pt-2 text-slate-200">
                   <MathText text={selectedLesson.content_markdown} />
                 </div>
+
+                <section className="mt-5 border-t border-slate-800 pt-4" aria-labelledby="teach-back-heading">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h2 id="teach-back-heading" className="text-sm font-semibold text-slate-100">Teach it back</h2>
+                      <p className="mt-1 text-xs leading-5 text-slate-400">Without looking up, explain the core idea, rule, or trade-off as if you were helping a classmate.</p>
+                    </div>
+                    <button
+                      onClick={() => setTeachBackOpen(open => !open)}
+                      className="shrink-0 rounded-md border border-slate-600 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800"
+                      aria-expanded={teachBackOpen}
+                    >{teachBackOpen ? 'Hide notes' : 'Try recall'}</button>
+                  </div>
+                  {teachBackOpen && <div className="mt-3">
+                    <label className="sr-only" htmlFor="teach-back">Your explanation</label>
+                    <textarea
+                      id="teach-back"
+                      value={teachBack}
+                      onChange={event => saveTeachBack(event.target.value)}
+                      placeholder="Start with: “The key idea is…”"
+                      className="min-h-28 w-full resize-y rounded-md border border-slate-700 bg-slate-950 p-3 text-sm leading-6 text-slate-200 placeholder:text-slate-600 focus:border-slate-400 focus:outline-none"
+                    />
+                    <p className="mt-2 text-[11px] text-slate-500">Saved on this device. Compare your explanation with the lesson, then revise it once.</p>
+                  </div>}
+                </section>
               </div>
 
               {/* Retrieval Practice: Quick Check Questions */}
@@ -586,6 +680,11 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ onProgressUpdated, sel
                         {selectedLesson.quick_check_questions.length}/{selectedLesson.quick_check_questions.length} Passed
                       </span>
                     )}
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] text-slate-500" aria-live="polite">
+                    <span>Recall checkpoint</span>
+                    <span>{Object.keys(quickCheckAnswers).length} / {selectedLesson.quick_check_questions.length} answers selected</span>
                   </div>
 
                   {checkFeedback && !checkFeedback.allCorrect && (
