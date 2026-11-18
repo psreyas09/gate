@@ -38,6 +38,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 ::selection { background: rgb(226 232 240 / 0.2); color: #fff; }
 
+/* Tailwind slate-500 (#64748b) falls below WCAG AA on the app's dark
+   surfaces. Preserve the muted hierarchy without making helper text unreadable. */
+:where(.text-slate-500) { color: #9aaac0; }
+
 /* Navigation must follow the input device as well as width. Mobile Chrome can
    expose a desktop-sized layout viewport, which makes width-only breakpoints
    render both navigation systems. */

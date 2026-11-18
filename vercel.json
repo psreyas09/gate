@@ -2,6 +2,24 @@
   "installCommand": "npm install && npm --prefix client install",
   "buildCommand": "npm --prefix client run build",
   "outputDirectory": "client/dist",
+  "headers": [
+    {
+      "source": "/",
+      "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }]
+    },
+    {
+      "source": "/index.html",
+      "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }]
+    },
+    {
+      "source": "/assets/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    }
+  ],
   "routes": [
     { "src": "/api/(.*)", "dest": "/api" },
     { "src": "/api", "dest": "/api" },
