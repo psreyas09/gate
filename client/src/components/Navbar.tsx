@@ -99,7 +99,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {onOpenCalculator && (
               <button
                 onClick={onOpenCalculator}
-                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition-colors text-xs font-medium shrink-0"
+                className="hidden items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition-colors text-xs font-medium shrink-0"
                 title="Open GATE Virtual Scientific Calculator"
               >
                 <Calculator className="w-3.5 h-3.5 text-cyan-400" />
@@ -110,7 +110,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Study Mode Indicator */}
             <button
               onClick={() => handleSelectTab('calendar')}
-              className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+              className={`hidden items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
                 isLightMode
                   ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20'
                   : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20'
@@ -144,7 +144,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Sync Devices Button */}
             <button
               onClick={onOpenDeviceSync}
-              className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition-colors text-xs font-medium shrink-0"
+              className="hidden items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition-colors text-xs font-medium shrink-0"
               title="Sync Account & Progress across Laptop, Phone, and Tablet"
             >
               <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
@@ -154,7 +154,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Backup Button - Hidden on mobile, accessible via More drawer */}
             <button
               onClick={onOpenBackup}
-              className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition-colors text-xs font-medium shrink-0"
+              className="hidden items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition-colors text-xs font-medium shrink-0"
               title="Backup & Export Database"
               aria-label="Backup"
             >

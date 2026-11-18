@@ -102,10 +102,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const readinessScore = scopeInfo.pct || (scopeInfo.total > 0 ? Math.round((scopeInfo.completed / scopeInfo.total) * 100) : 0);
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+      <div className="space-y-6 sm:space-y-8">
       {/* Guest Mode Callout Banner */}
       {!currentUser && onOpenAuth && (
-        <div className="flex items-center justify-between gap-3 p-3 sm:p-4 rounded-xl bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border border-cyan-500/30 text-slate-200 shadow-md">
+        <div className="flex items-center justify-between gap-3 px-3.5 py-3 rounded-lg bg-cyan-950/20 border border-cyan-900/70 text-slate-200">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
             <div className="p-2 rounded-lg bg-cyan-500/15 text-cyan-400 shrink-0">
               <UserIcon className="w-4 h-4" />
@@ -122,7 +122,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <button
             onClick={onOpenAuth}
-            className="shrink-0 px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-sm shadow-cyan-900/40 transition-all active:scale-95"
+            className="shrink-0 px-3 py-1.5 rounded-md bg-cyan-400 hover:bg-cyan-300 text-slate-950 text-xs font-semibold transition-colors"
           >
             Sign In
           </button>
@@ -222,9 +222,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </section>
 
-      {/* Daily 5 Micro-Challenge & Quick Tools Banner */}
+      {/* Daily action and reference tools */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4">
-        <div className="p-4 rounded-xl bg-[#151b26] border border-slate-700/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 md:col-span-2">
+        <div className="p-4 rounded-lg bg-slate-900/50 border border-slate-700/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 md:col-span-2">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-300 shrink-0">
               <Zap className="w-5 h-5 fill-current" />
@@ -249,7 +249,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Quick Reference Tools */}
-        <div className="p-3 rounded-xl bg-[#101b2e] border border-slate-700/80 flex items-center justify-between gap-2">
+        <div className="p-3 rounded-lg bg-slate-900/50 border border-slate-700/80 flex items-center justify-between gap-2">
           <button
             onClick={() => onNavigate('resources')}
             className="flex-1 p-2 rounded-xl bg-slate-800/60 hover:bg-amber-500/10 border border-slate-700/60 hover:border-amber-500/30 text-left transition-colors flex items-center gap-2"
@@ -290,16 +290,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Quick Action Cards Grid */}
+      {/* Core study actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-5">
         {/* Card 1: Spaced Repetition Due Queue */}
         <div className="p-4 sm:p-5 rounded-xl bg-[#101b2e] border border-slate-700/80 hover:border-indigo-400/60 transition-colors flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-2 sm:mb-3">
-              <span className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+              <span className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
                 <Brain className="w-4 h-4 shrink-0" /> Spaced Repetition
               </span>
-              <span className="px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-indigo-500/20 text-indigo-300">
+              <span className="px-2 py-0.5 rounded text-[11px] sm:text-xs font-bold bg-cyan-500/15 text-cyan-200">
                 {overview?.dueReviews ?? 0} Due
               </span>
             </div>
@@ -310,7 +310,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <button
             onClick={() => onNavigate('spaced_repetition')}
-            className="mt-4 flex items-center justify-between w-full px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-medium text-xs transition-colors min-h-[44px]"
+            className="mt-4 flex items-center justify-between w-full px-4 py-2.5 rounded-md bg-cyan-500 hover:bg-cyan-400 active:bg-cyan-600 text-slate-950 font-semibold text-xs transition-colors min-h-[44px]"
           >
             <span>Review {overview?.dueReviews ?? 0} Cards</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -324,7 +324,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <span className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
                 <AlertTriangle className="w-4 h-4 shrink-0" /> Weak-Area Drill
               </span>
-              <span className="px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-amber-500/20 text-amber-300">
+              <span className="px-2 py-0.5 rounded text-[11px] sm:text-xs font-bold bg-amber-500/15 text-amber-200">
                 {(overview?.weakTopics || []).length} Identified
               </span>
             </div>
@@ -335,7 +335,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <button
             onClick={onDrillWeakAreas}
-            className="mt-4 flex items-center justify-between w-full px-4 py-2.5 rounded-lg bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white font-medium text-xs transition-colors min-h-[44px]"
+            className="mt-4 flex items-center justify-between w-full px-4 py-2.5 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 font-semibold text-xs transition-colors min-h-[44px]"
           >
             <span>Start Weak-Area Drill</span>
             <Zap className="w-3.5 h-3.5" />
@@ -349,7 +349,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <span className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
                 <TrendingUp className="w-4 h-4 shrink-0" /> Benchmark Test
               </span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-cyan-500/20 text-cyan-300">
+              <span className="px-2 py-0.5 rounded text-[10px] sm:text-xs font-bold bg-cyan-500/15 text-cyan-200">
                 GATE Negative Marking
               </span>
             </div>
@@ -360,7 +360,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <button
             onClick={() => onNavigate('mock')}
-            className="mt-4 flex items-center justify-between w-full px-4 py-2.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700 text-white font-medium text-xs transition-colors min-h-[44px]"
+            className="mt-4 flex items-center justify-between w-full px-4 py-2.5 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 font-semibold text-xs transition-colors min-h-[44px]"
           >
             <span>Launch Mock Exam</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -368,8 +368,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Curriculum Tiers Progress Overview */}
-      <div className="p-4 sm:p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-4 sm:space-y-5">
+      {/* Curriculum progress */}
+      <section className="p-5 sm:p-6 rounded-xl bg-slate-900/35 border border-slate-700/80 space-y-4 sm:space-y-5">
         <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2">
           <div>
             <h3 className="text-sm sm:text-base font-semibold text-slate-100">Curriculum Structure by Tier</h3>
@@ -453,10 +453,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Authoritative Textbook Grounding */}
-      <div className="p-5 rounded-xl bg-slate-900/40 border border-slate-800/80">
+      {/* References */}
+      <section className="p-5 rounded-xl bg-slate-900/20 border border-slate-800/80">
         <div className="flex items-center gap-2 mb-3">
           <BookMarked className="w-4 h-4 text-cyan-400" />
           <h3 className="text-sm font-semibold text-slate-200">Curriculum Grounded in GATE Standard References</h3>
@@ -487,7 +487,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             Kenneth Rosen & B.S. Grewal
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Daily 5 Micro-Challenge Modal */}
       <DailyWarmupModal
