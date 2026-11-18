@@ -68,21 +68,24 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="shrink-0 sm:sticky sm:top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800">
+    <header className="shrink-0 sm:sticky sm:top-0 z-40 bg-[#0b1220]/95 backdrop-blur-md border-b border-slate-800/90">
         {/* Top Bar */}
         <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-2">
           {/* Brand */}
           <div
-            className="flex items-center gap-2 cursor-pointer select-none shrink-0"
+            className="flex items-center gap-2 cursor-pointer select-none shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
             onClick={() => handleSelectTab('dashboard')}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); handleSelectTab('dashboard'); } }}
           >
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-cyan-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-900/30 font-black text-white text-sm sm:text-base shrink-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-cyan-500 flex items-center justify-center font-black text-slate-950 text-sm sm:text-base shrink-0">
               G
             </div>
             <div>
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <span className="font-bold text-slate-100 tracking-tight text-sm sm:text-lg">GATE 2027</span>
-                <span className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider px-1.5 sm:px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 hidden sm:inline-block">
+                <span className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider px-1.5 sm:px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/25 text-cyan-200 hidden sm:inline-block">
                   Target 35+
                 </span>
               </div>
@@ -175,7 +178,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             ) : (
               <button
                 onClick={onOpenAuth}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white shadow-md shadow-cyan-900/40 text-xs font-semibold transition-all active:scale-95 shrink-0"
+                className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-cyan-400 hover:bg-cyan-300 text-slate-950 text-xs font-semibold transition-colors active:scale-[0.98] shrink-0"
                 title="Sign In or Create Account to save progress across devices"
               >
                 <UserIcon className="w-3.5 h-3.5 shrink-0" />
@@ -186,9 +189,9 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Scrollable Navigation Pill Tabs */}
-        <div className="relative border-t border-slate-800/80 bg-slate-900/60">
+        <div className="relative border-t border-slate-800/80 bg-[#0b1220]/80">
           <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 overflow-x-auto no-scrollbar scroll-smooth">
-            <nav className="flex space-x-1 sm:space-x-2 py-1.5 min-w-max">
+            <nav className="flex gap-1 sm:gap-2 min-w-max" aria-label="Primary navigation">
               {TABS.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = currentTab === tab.id;
@@ -200,10 +203,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                     onClick={() => handleSelectTab(tab.id)}
                     onMouseEnter={() => onPrefetchTab?.(tab.id)}
                     onTouchStart={() => onPrefetchTab?.(tab.id)}
-                    className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all touch-manipulation ${
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2.5 border-b-2 text-xs font-medium whitespace-nowrap transition-colors touch-manipulation ${
                       isActive
-                        ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shadow-sm'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent'
+                        ? 'text-cyan-300 border-cyan-400'
+                        : 'text-slate-400 hover:text-slate-200 border-transparent'
                     }`}
                   >
                     <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isActive ? 'text-cyan-400' : 'text-slate-400'}`} />

@@ -210,7 +210,7 @@ export function App() {
   };
 
   return (
-    <div className="h-screen h-[100dvh] sm:h-auto sm:min-h-screen bg-slate-950 text-slate-100 flex flex-col overflow-hidden sm:overflow-visible font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
+    <div className="h-screen h-[100dvh] sm:h-auto sm:min-h-screen bg-[#0b1220] text-slate-100 flex flex-col overflow-hidden sm:overflow-visible font-sans">
       {/* Header Navigation */}
       <Navbar
         currentTab={currentTab}
@@ -228,7 +228,7 @@ export function App() {
       {/* Main Content Area */}
       <main
         ref={mainRef}
-        className="flex-1 overflow-y-auto sm:overflow-visible sm:h-auto overscroll-y-contain max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-6 sm:pb-8"
+        className="flex-1 overflow-y-auto sm:overflow-visible sm:h-auto overscroll-y-contain max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 pb-6 sm:pb-8"
       >
         <ErrorBoundary fallbackTitle="Could not load view">
           <Suspense fallback={<ViewSkeleton />}>
