@@ -1,11 +1,7 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { Navbar, MobileBottomNav, NavTab } from './components/Navbar';
-import { BackupModal } from './components/BackupModal';
-import { AuthModal } from './components/AuthModal';
-import { DeviceSyncModal } from './components/DeviceSyncModal';
 import { OverviewData, User } from './types';
 import { Database, ShieldCheck, Smartphone, CheckCircle2 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Code-split heavy views via React.lazy for optimized initial bundle
@@ -18,6 +14,9 @@ const CalendarView = React.lazy(() => import('./components/CalendarView').then(m
 const ResourcesView = React.lazy(() => import('./components/ResourcesView').then(m => ({ default: m.ResourcesView })));
 const FormulaVaultView = React.lazy(() => import('./components/FormulaVaultView').then(m => ({ default: m.FormulaVaultView })));
 const GateCalculator = React.lazy(() => import('./components/GateCalculator').then(m => ({ default: m.GateCalculator })));
+const BackupModal = React.lazy(() => import('./components/BackupModal').then(m => ({ default: m.BackupModal })));
+const AuthModal = React.lazy(() => import('./components/AuthModal').then(m => ({ default: m.AuthModal })));
+const DeviceSyncModal = React.lazy(() => import('./components/DeviceSyncModal').then(m => ({ default: m.DeviceSyncModal })));
 
 const viewLoaders: Record<string, () => Promise<any>> = {
   dashboard: () => import('./components/StudyDashboard'),
@@ -165,11 +164,11 @@ export function App() {
       }
 
       fetchOverview();
-      confetti({
+      import('canvas-confetti').then(({ default: confetti }) => confetti({
         particleCount: 80,
         spread: 70,
         origin: { y: 0.6 },
-      });
+      }));
     } catch (err) {
       console.error('Failed to apply incoming sync:', err);
     }
@@ -291,10 +290,10 @@ export function App() {
       />
 
       {/* Global GATE Virtual Calculator */}
-      <GateCalculator
+      {isGlobalCalcOpen && <Suspense fallback={null}><GateCalculator
         isOpen={isGlobalCalcOpen}
         onClose={() => setIsGlobalCalcOpen(false)}
-      />
+      /></Suspense>}
 
       {/* Footer (Desktop only - mobile uses dedicated bottom nav & More drawer) */}
       <footer className="hidden sm:block border-t border-slate-800/80 bg-slate-900/40 py-5 sm:pb-6 text-xs text-slate-500">
@@ -325,27 +324,27 @@ export function App() {
       </footer>
 
       {/* Backup & Persistence Modal */}
-      <BackupModal
+      {isBackupOpen && <Suspense fallback={null}><BackupModal
         isOpen={isBackupOpen}
         onClose={() => setIsBackupOpen(false)}
         onRestoreSuccess={fetchOverview}
-      />
+      /></Suspense>}
 
       {/* Account Authentication & Migration Modal */}
-      <AuthModal
+      {isAuthModalOpen && <Suspense fallback={null}><AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         onSuccess={handleAuthSuccess}
-      />
+      /></Suspense>}
 
       {/* Cross-Device Instant QR & Link Sync Modal */}
-      <DeviceSyncModal
+      {isDeviceSyncOpen && <Suspense fallback={null}><DeviceSyncModal
         isOpen={isDeviceSyncOpen}
         onClose={() => setIsDeviceSyncOpen(false)}
         currentUser={currentUser}
         overview={overview}
         onSyncApplied={fetchOverview}
-      />
+      /></Suspense>}
 
       {/* Incoming Cross-Device Sync Confirmation Prompt */}
       {incomingSync && (

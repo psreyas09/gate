@@ -69,7 +69,7 @@ export function StudyDashboard({ overview, onNavigate, onDrillWeakAreas, current
         {scopes.map(item => <button key={item.id} onClick={() => changeScope(item.id)} aria-pressed={scope === item.id}
           className={`p-4 text-left transition-colors ${scope === item.id ? 'bg-slate-700/70' : 'bg-[#101827] hover:bg-slate-800'}`}>
           <span className={`block text-sm font-semibold ${scope === item.id ? 'text-white' : 'text-slate-200'}`}>{item.label}</span>
-          <span className="mt-1 block text-xs text-slate-400">{item.detail}</span>
+          <span className="mt-1 block text-xs text-slate-200">{item.detail}</span>
         </button>)}
       </div>
     </section>
