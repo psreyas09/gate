@@ -68,7 +68,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="hidden sm:block shrink-0 sm:sticky sm:top-0 z-40 bg-[#0b1220]/95 backdrop-blur-md border-b border-slate-800/90">
+    <header className="desktop-nav-shell shrink-0 sm:sticky sm:top-0 z-40 bg-[#0b1220]/95 backdrop-blur-md border-b border-slate-800/90">
         {/* Top Bar */}
         <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-2">
           {/* Brand */}
@@ -252,7 +252,7 @@ export const MobileBottomNav: React.FC<NavbarProps> = ({
       {/* Mobile Bottom Navigation Bar (Phone-friendly, 1-thumb reach) */}
       <nav
         aria-label="Mobile Navigation"
-        className="sm:hidden shrink-0 z-40 bg-slate-900 border-t border-slate-800 safe-bottom select-none"
+        className="mobile-nav-shell shrink-0 z-40 bg-slate-900 border-t border-slate-800 safe-bottom select-none"
       >
         <div className="grid grid-cols-5 h-14">
           {/* 1. Dashboard */}

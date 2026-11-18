@@ -38,6 +38,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 ::selection { background: rgb(226 232 240 / 0.2); color: #fff; }
 
+/* Navigation must follow the input device as well as width. Mobile Chrome can
+   expose a desktop-sized layout viewport, which makes width-only breakpoints
+   render both navigation systems. */
+.desktop-nav-shell { display: none; }
+.mobile-nav-shell { display: block; }
+@media (min-width: 640px) and (pointer: fine) {
+  .desktop-nav-shell { display: block; }
+  .mobile-nav-shell { display: none; }
+}
+
 /* Mobile-friendly safe-area padding helpers */
 .safe-bottom {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
